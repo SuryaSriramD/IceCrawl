@@ -11,7 +11,7 @@ describe('buildFeatureFlags', () => {
   });
 
   it('adds flags from options', () => {
-    expect(flags({ waitFor: 500, mobile: true, actions: [{ type: 'wait' }], proxy: 'enhanced', blockAds: false })).toEqual(
+    expect(flags({ waitFor: 500, mobile: true, actions: [{ type: 'wait', milliseconds: 100 }], proxy: 'enhanced', blockAds: false })).toEqual(
       ['actions', 'disableAdblock', 'mobile', 'skipTlsVerification', 'stealthProxy', 'waitFor'].sort(),
     );
   });

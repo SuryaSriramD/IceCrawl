@@ -70,10 +70,10 @@ describe('POST /v2/scrape', () => {
     const { app, auth } = await makeApp();
     const res = await app.inject({
       method: 'POST', url: '/v2/scrape', headers: auth,
-      payload: { url: 'https://example.com/start', formats: ['markdown', 'screenshot'], waitFor: 100 },
+      payload: { url: 'https://example.com/start', formats: ['markdown', 'json'], waitFor: 100 },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data.warning).toContain('screenshot');
+    expect(res.json().data.warning).toContain('json');
     expect(res.json().data.warning).toContain('waitFor');
   });
 

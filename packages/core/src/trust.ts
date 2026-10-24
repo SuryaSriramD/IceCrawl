@@ -42,6 +42,14 @@ export interface EngineAttempt {
   error?: string;
 }
 
+export interface ReceiptOptions {
+  onlyMainContent: boolean;
+  skipTlsVerification: boolean;
+  includeTags?: string[];
+  excludeTags?: string[];
+  removeBase64Images?: boolean;
+}
+
 export interface Receipt {
   version: 1;
   id: string;
@@ -53,5 +61,28 @@ export interface Receipt {
   htmlSha256: string | null;
   outputSha256: string | null;
   converter: { name: string; version: string };
-  options: { onlyMainContent: boolean; skipTlsVerification: boolean };
+  contentType?: string | null;
+  screenshotSha256?: string | null;
+  options: ReceiptOptions;
+}
+
+export interface ReceiptSignature {
+  alg: 'Ed25519';
+  keyId: string;
+  /** base64 Ed25519 signature over the RFC 8785 canonical JSON of the receipt */
+  sig: string;
+}
+
+export interface PublicKeyEntry {
+  keyId: string;
+  alg: 'Ed25519';
+  /** base64 of the SPKI DER encoding */
+  publicKey: string;
+  createdAt: string;
+  retiredAt: string | null;
+}
+
+export interface SignedReceipt {
+  receipt: Receipt;
+  signature: ReceiptSignature | null;
 }
