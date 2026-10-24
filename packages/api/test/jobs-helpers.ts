@@ -1,3 +1,5 @@
+import { sha256Hex } from '@icecrawl/trust';
+import { buildApp } from '../src/app';
 import { randomUUID } from 'node:crypto';
 import { featureSet, type Engine } from '@icecrawl/engines';
 import type { Fetcher } from '@icecrawl/crawler';
@@ -120,4 +122,29 @@ export async function drain(deps: JobDeps, queues: MemoryQueues, o: { maxAttempt
     }
   }
   throw new Error('drain did not converge');
+}
+
+export async function makeJobsApp(
+  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean } = {},
+) {
+  const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false });
+  const keyId = randomUUID();
+  await store.createApiKey({ id: keyId, hash: sha256Hex('ic-jobs'), name: 'jobs' });
+  const app = buildApp({
+    store,
+    snapshots: deps.snapshots,
+    engines: deps.engines,
+    scraper: deps.scraper,
+    useAuth: over.useAuth ?? true,
+    jobs: {
+      queues,
+      ttlHours: 24,
+      pageBytes: 10_000_000,
+      maxCrawlLimit: 1000,
+      allowPrivateNetworks: false,
+      allowIgnoreRobots: over.allowIgnoreRobots ?? false,
+      ...over.jobs,
+    },
+  });
+  return { app, store, queues, deps, calls, keyId, auth: { authorization: 'Bearer ic-jobs' } };
 }

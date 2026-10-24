@@ -3,6 +3,7 @@ import { IceCrawlError, normalizeScrapeRequest, type SignedReceipt } from '@icec
 import type { Engine } from '@icecrawl/engines';
 import type { ScraperConfig } from '@icecrawl/scraper';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
+import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { scrapeAndPersist } from './scrape-service';
 import { snapshotKey, type SnapshotStore, type Store } from './store/types';
 
@@ -13,6 +14,7 @@ export interface AppDeps {
   scraper: ScraperConfig;
   useAuth: boolean;
   signer?: PrivateSigningKey;
+  jobs?: JobsDeps;
 }
 
 declare module 'fastify' {
@@ -24,9 +26,7 @@ declare module 'fastify' {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PLANNED: Record<string, number> = {
-  crawl: 3,
   map: 3,
-  batch: 3,
   search: 5,
   extract: 5,
   parse: 7,
@@ -84,6 +84,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         const { status, payload } = await scrapeAndPersist(deps, normalized, { apiKeyId: req.apiKeyId });
         return reply.status(status).send(payload);
       });
+
+      registerJobRoutes(v2, deps);
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {
         const rec = UUID.test(req.params.id) ? await deps.store.getScrape(req.params.id) : null;
