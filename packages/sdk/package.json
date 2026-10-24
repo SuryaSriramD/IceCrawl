@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@icecrawl/core": "workspace:*" }
+  "exports": { ".": "./src/index.ts", "./verify": "./src/verify.ts" },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/scraper": "workspace:*",
+    "@icecrawl/trust": "workspace:*"
+  }
 }
