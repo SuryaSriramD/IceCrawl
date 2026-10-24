@@ -3,3 +3,4 @@ export * from './types';
 export * from './picker';
 export * from './ssrf';
 export * from './fetch';
+export * from './egress-proxy';
