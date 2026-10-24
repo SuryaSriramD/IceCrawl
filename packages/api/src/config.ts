@@ -7,6 +7,7 @@ export interface AppConfig {
   useAuth: boolean;
   allowPrivateNetworks: boolean;
   strict: boolean;
+  injection: 'off' | 'flag' | 'quarantine';
   maxResponseBytes: number;
   browserEnabled: boolean;
   preferBrowser: boolean;
@@ -25,6 +26,10 @@ export interface AppConfig {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const injection = env.ICECRAWL_INJECTION ?? 'flag';
+  if (injection !== 'off' && injection !== 'flag' && injection !== 'quarantine') {
+    throw new Error(`ICECRAWL_INJECTION must be off, flag or quarantine (got "${injection}")`);
+  }
   return {
     port: Number(env.PORT ?? 3002),
     databaseUrl: env.DATABASE_URL ?? 'postgres://icecrawl:icecrawl@localhost:5432/icecrawl',
@@ -34,6 +39,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     useAuth: env.ICECRAWL_USE_AUTH !== 'false',
     allowPrivateNetworks: env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true',
     strict: env.ICECRAWL_STRICT === 'true',
+    injection,
     maxResponseBytes: Number(env.ICECRAWL_MAX_RESPONSE_BYTES ?? 10 * 1024 * 1024),
     browserEnabled: env.ICECRAWL_BROWSER !== 'false',
     preferBrowser: env.ICECRAWL_PREFER_BROWSER !== 'false',

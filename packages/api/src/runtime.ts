@@ -48,6 +48,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     allowPrivateNetworks: config.allowPrivateNetworks,
     maxResponseBytes: config.maxResponseBytes,
     strict: config.strict,
+    injection: config.injection,
   };
   const jobDeps: JobDeps = {
     store,

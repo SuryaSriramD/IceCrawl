@@ -10,7 +10,21 @@ export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { sta
     reasons: run.reasons,
     receiptId: run.id,
     engine: run.engine,
+    ...(run.injection ? { injection: run.injection } : {}),
   };
+
+  if (run.accepted && run.quarantined) {
+    const rules = [...new Set(run.injection?.findings.filter((f) => f.severity === 'high').map((f) => f.rule) ?? [])];
+    return {
+      status: ERROR_STATUS.INJECTION_SUSPECTED,
+      payload: {
+        success: false,
+        code: 'INJECTION_SUSPECTED',
+        error: `Content withheld: the page appears to contain a prompt-injection attempt (${rules.join(', ') || 'high severity'}). The scrape and its receipt are stored for review.`,
+        trust,
+      },
+    };
+  }
 
   if (!run.accepted) {
     const code = VERDICT_ERROR_CODE[run.verdict as Exclude<Verdict, 'ok'>];

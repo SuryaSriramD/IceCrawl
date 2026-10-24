@@ -27,7 +27,7 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
 }
 
 export async function makeApp(
-  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; signer?: PrivateSigningKey } = {},
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey } = {},
 ) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
@@ -37,7 +37,7 @@ export async function makeApp(
     store,
     snapshots,
     engines: [opts.engine ?? fakeEngine({})],
-    scraper: { allowPrivateNetworks: false, maxResponseBytes: 1_000_000, strict: opts.strict ?? false },
+    scraper: { allowPrivateNetworks: false, maxResponseBytes: 1_000_000, strict: opts.strict ?? false, injection: opts.injection },
     useAuth: opts.useAuth ?? true,
     signer: opts.signer,
   });
