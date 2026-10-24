@@ -61,4 +61,10 @@ describe('convertHtml', () => {
     expect(() => convertHtml('', opts)).not.toThrow();
     expect(() => convertHtml('<<<not html>>>', opts)).not.toThrow();
   });
+  it('keeps the page heading even when it duplicates the title (example.com shape)', () => {
+    const html = '<!doctype html><html><head><title>Example Domain</title></head><body><div><h1>Example Domain</h1><p>This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.</p><p><a href="https://iana.org/domains/example">More information...</a></p></div></body></html>';
+    const c = convertHtml(html, opts);
+    expect(c.markdown).toContain('# Example Domain');
+    expect(c.markdown).toContain('illustrative examples');
+  });
 });
