@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { EngineAttempt, Receipt, ReceiptOptions } from '@icecrawl/core';
+import type { EngineAttempt, Receipt, ReceiptOptions, ScanSummary } from '@icecrawl/core';
 
 export function sha256Hex(data: string | Uint8Array): string {
   return createHash('sha256').update(data).digest('hex');
@@ -17,6 +17,7 @@ export interface ReceiptInput {
   converter: { name: string; version: string };
   contentType: string | null;
   screenshot: Uint8Array | null;
+  scan?: ScanSummary | null;
   options: ReceiptOptions;
 }
 
@@ -34,6 +35,7 @@ export function buildReceipt(i: ReceiptInput): Receipt {
     converter: i.converter,
     contentType: i.contentType,
     screenshotSha256: i.screenshot ? sha256Hex(i.screenshot) : null,
+    scan: i.scan ?? null,
     options: i.options,
   };
 }

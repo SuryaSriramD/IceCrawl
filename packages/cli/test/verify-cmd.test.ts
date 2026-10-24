@@ -66,6 +66,7 @@ describe('icecrawl verify (online)', () => {
     expect(text).toMatch(/signature\s+PASS/);
     expect(text).toMatch(/snapshot\s+PASS/);
     expect(text).toMatch(/replay\s+PASS/);
+    expect(text).toMatch(/scan\s+SKIP/);
     expect(seen.some((s) => s.includes('/receipts/22222222') && s.endsWith('Bearer ic-test'))).toBe(true);
   });
 

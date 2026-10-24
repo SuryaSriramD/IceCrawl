@@ -3,12 +3,13 @@ import {
   IceCrawlError,
   type EngineAttempt,
   type ErrorCode,
+  type InjectionReport,
   type NormalizedScrape,
   type Receipt,
   type Verdict,
 } from '@icecrawl/core';
 import { pickEngines, type ActionOutputs, type Engine, type EngineResult } from '@icecrawl/engines';
-import { buildReceipt, classify, sha256Hex } from '@icecrawl/trust';
+import { buildReceipt, classify, scanForInjection, sha256Hex, summarizeScan } from '@icecrawl/trust';
 import { CONVERTER } from './convert';
 import { buildFeatureFlags } from './flags';
 import { renderBody } from './render';
@@ -17,6 +18,7 @@ export interface ScraperConfig {
   allowPrivateNetworks: boolean;
   maxResponseBytes: number;
   strict: boolean;
+  injection?: 'off' | 'flag' | 'quarantine';
 }
 
 export interface ScrapeDeps {
@@ -47,6 +49,8 @@ export interface ScrapeRun {
   snapshot: { bytes: Uint8Array; sha256: string };
   screenshot: Uint8Array | null;
   actions: ActionOutputs | null;
+  injection: InjectionReport | null;
+  quarantined: boolean;
   warnings: string[];
 }
 
@@ -162,6 +166,9 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
 
   if (!last) throw lastError ?? new IceCrawlError('NO_ENGINE', 'No engine produced a result');
 
+  const mode = deps.config.injection ?? 'flag';
+  const injection = mode === 'off' ? null : scanForInjection({ html: last.rawHtml, markdown: last.markdown });
+
   const id = randomUUID();
   const receipt = buildReceipt({
     id,
@@ -175,6 +182,7 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     converter: CONVERTER,
     contentType: last.result.contentType,
     screenshot: last.result.screenshot ?? null,
+    scan: injection ? summarizeScan(injection) : null,
     options: {
       onlyMainContent: request.onlyMainContent,
       skipTlsVerification: request.skipTlsVerification,
@@ -206,6 +214,8 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     snapshot: { bytes: last.result.body, sha256: sha256Hex(last.result.body) },
     screenshot: last.result.screenshot ?? null,
     actions: last.result.actions ?? null,
+    injection,
+    quarantined: mode === 'quarantine' && injection?.highest === 'high',
     warnings,
   };
 }

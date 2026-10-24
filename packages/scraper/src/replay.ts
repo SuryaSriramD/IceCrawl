@@ -1,5 +1,5 @@
 import type { Receipt } from '@icecrawl/core';
-import type { ReplayResult } from '@icecrawl/trust';
+import { scanForInjection, summarizeScan, type ReplayResult } from '@icecrawl/trust';
 import { CONVERTER } from './convert';
 import { renderBody } from './render';
 
@@ -16,5 +16,8 @@ export function replayMarkdown(receipt: Receipt, htmlBytes: Uint8Array): ReplayR
     excludeTags: receipt.options.excludeTags,
     removeBase64Images: receipt.options.removeBase64Images ?? true,
   });
-  return { markdown: r.markdown };
+  return {
+    markdown: r.markdown,
+    scan: summarizeScan(scanForInjection({ html: r.text, markdown: r.markdown })),
+  };
 }

@@ -23,6 +23,12 @@ describe('sha256Hex', () => {
 });
 
 describe('buildReceipt', () => {
+  it('records the scan summary, or null when scanning was off', () => {
+    const scan = { scanner: { name: 'icecrawl-injection-scan', version: '1' }, flagged: true, highest: 'high' as const, count: 2 };
+    expect(buildReceipt({ ...base, scan }).scan).toEqual(scan);
+    expect(buildReceipt(base).scan).toBeNull();
+  });
+
   it('records hashes, chain and timestamps', () => {
     const r = buildReceipt(base);
     expect(r.version).toBe(1);

@@ -110,6 +110,7 @@ export async function runVerify(args: string[], io: VerifyIo): Promise<number> {
   io.out(line('snapshot', report.html));
   io.out(line('screenshot', report.screenshot));
   io.out(line('replay', report.replay));
+  io.out(line('scan', report.scan));
   io.out(report.ok ? 'OK: no check failed.' : 'FAILED: at least one check failed.');
   return report.ok ? 0 : 1;
 }

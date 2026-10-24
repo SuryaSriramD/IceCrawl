@@ -1,4 +1,4 @@
-import type { PublicKeyEntry, SignedReceipt } from '@icecrawl/core';
+import type { PublicKeyEntry, ScanSummary, SignedReceipt } from '@icecrawl/core';
 import { sha256Hex } from './receipt';
 import { verifySignature } from './sign';
 
@@ -7,7 +7,7 @@ export interface Check {
   status: CheckStatus;
   detail: string;
 }
-export type ReplayResult = { markdown: string } | { unavailable: string };
+export type ReplayResult = { markdown: string; scan?: ScanSummary | null } | { unavailable: string };
 
 export interface VerifyInput {
   signed: SignedReceipt;
@@ -22,6 +22,7 @@ export interface VerifyReport {
   html: Check;
   screenshot: Check;
   replay: Check;
+  scan: Check;
   ok: boolean;
 }
 
@@ -36,6 +37,9 @@ function hashCheck(label: string, expected: string | null | undefined, bytes: Ui
     ? check('pass', `sha256 ${short(actual)}… matches the receipt`)
     : check('fail', `sha256 ${short(actual)}… but the receipt says ${short(expected)}…`);
 }
+
+const sameScan = (a: ScanSummary, b: ScanSummary) =>
+  a.flagged === b.flagged && a.highest === b.highest && a.count === b.count;
 
 export function verifyReceipt(i: VerifyInput): VerifyReport {
   const { receipt, signature } = i.signed;
@@ -56,22 +60,42 @@ export function verifyReceipt(i: VerifyInput): VerifyReport {
   const html = hashCheck('snapshot hash', receipt.htmlSha256, i.html);
   const screenshot = hashCheck('screenshot hash', receipt.screenshotSha256, i.screenshot);
 
+  const canReplay = Boolean(i.replay && i.html && html.status !== 'fail');
+  const replayed = canReplay ? i.replay!(i.html!) : null;
+
   let replay: Check;
   if (!i.replay) replay = check('skipped', 'replay not requested');
   else if (!i.html) replay = check('skipped', 'snapshot not provided');
   else if (html.status === 'fail') replay = check('skipped', 'snapshot does not match the receipt, so replaying it is meaningless');
   else if (!receipt.outputSha256) replay = check('skipped', 'receipt records no output hash');
+  else if (replayed && 'unavailable' in replayed) replay = check('skipped', `replay unavailable: ${replayed.unavailable}`);
   else {
-    const r = i.replay(i.html);
-    if ('unavailable' in r) replay = check('skipped', `replay unavailable: ${r.unavailable}`);
-    else {
-      const actual = sha256Hex(r.markdown);
-      replay =
-        actual === receipt.outputSha256
-          ? check('pass', `re-running the converter reproduces output ${short(actual)}…`)
-          : check('fail', `re-running the converter gives ${short(actual)}… but the receipt says ${short(receipt.outputSha256)}…`);
-    }
+    const actual = sha256Hex((replayed as { markdown: string }).markdown);
+    replay =
+      actual === receipt.outputSha256
+        ? check('pass', `re-running the converter reproduces output ${short(actual)}…`)
+        : check('fail', `re-running the converter gives ${short(actual)}… but the receipt says ${short(receipt.outputSha256)}…`);
   }
 
-  return { signature: sig, html, screenshot, replay, ok: [sig, html, screenshot, replay].every((c) => c.status !== 'fail') };
+  let scan: Check;
+  if (receipt.scan === undefined) scan = check('skipped', 'receipt predates injection scanning');
+  else if (receipt.scan === null) scan = check('skipped', 'injection scanning was off for this scrape');
+  else if (!replayed) scan = check('skipped', 'no replay available');
+  else if ('unavailable' in replayed || !replayed.scan) scan = check('skipped', 'replay did not produce a scan summary');
+  else if (replayed.scan.scanner.name !== receipt.scan.scanner.name || replayed.scan.scanner.version !== receipt.scan.scanner.version) {
+    scan = check('skipped', `receipt used scanner ${receipt.scan.scanner.name}@${receipt.scan.scanner.version}, this build has ${replayed.scan.scanner.name}@${replayed.scan.scanner.version}`);
+  } else if (sameScan(replayed.scan, receipt.scan)) {
+    scan = check('pass', `re-running the scanner gives the recorded result (${receipt.scan.count} finding(s), highest ${receipt.scan.highest ?? 'none'})`);
+  } else {
+    scan = check('fail', `re-running the scanner gives ${replayed.scan.count} finding(s), highest ${replayed.scan.highest ?? 'none'}, but the receipt says ${receipt.scan.count}, highest ${receipt.scan.highest ?? 'none'}`);
+  }
+
+  return {
+    signature: sig,
+    html,
+    screenshot,
+    replay,
+    scan,
+    ok: [sig, html, screenshot, replay, scan].every((c) => c.status !== 'fail'),
+  };
 }

@@ -110,3 +110,50 @@ describe('verifyReceipt', () => {
     expect(r.html.detail).toContain(sha256Hex(html).slice(0, 12));
   });
 });
+
+describe('verifyReceipt scan check', () => {
+  const scan = { scanner: { name: 'icecrawl-injection-scan', version: '1' }, flagged: true, highest: 'high' as const, count: 2 };
+  const replayWith = (s: unknown) => () => ({ markdown, scan: s as never });
+
+  it('passes when replaying the scanner gives the recorded summary', () => {
+    const { receipt, signature, publicKeys } = setup({ scan });
+    const r = verifyReceipt({ signed: { receipt, signature }, publicKeys, html, screenshot: png, replay: replayWith(scan) });
+    expect(r.scan.status).toBe('pass');
+    expect(r.ok).toBe(true);
+  });
+
+  it('fails when the replayed summary differs (the scan result was altered)', () => {
+    const { receipt, signature, publicKeys } = setup({ scan });
+    const r = verifyReceipt({ signed: { receipt, signature }, publicKeys, html, screenshot: png, replay: replayWith({ ...scan, count: 0, flagged: false, highest: null }) });
+    expect(r.scan.status).toBe('fail');
+    expect(r.ok).toBe(false);
+  });
+
+  it('skips for a different scanner version, an old receipt, a scan-off receipt, or no replay', () => {
+    const base = setup({ scan });
+    const other = verifyReceipt({ ...{ signed: { receipt: base.receipt, signature: base.signature }, publicKeys: base.publicKeys, html, screenshot: png }, replay: replayWith({ ...scan, scanner: { name: 'icecrawl-injection-scan', version: '2' } }) });
+    expect(other.scan.status).toBe('skipped');
+
+    const old = setup();
+    const legacy = { ...old.receipt } as Record<string, unknown>;
+    delete legacy.scan;
+    const oldReport = verifyReceipt({ signed: { receipt: legacy as never, signature: old.signature }, publicKeys: old.publicKeys, html, screenshot: png, replay: replayWith(scan) });
+    expect(oldReport.scan.status).toBe('skipped');
+    expect(oldReport.scan.detail).toContain('predates');
+
+    const off = verifyReceipt({ signed: { receipt: old.receipt, signature: old.signature }, publicKeys: old.publicKeys, html, screenshot: png, replay: replayWith(scan) });
+    expect(off.scan.status).toBe('skipped');
+
+    const noReplay = verifyReceipt({ signed: { receipt: base.receipt, signature: base.signature }, publicKeys: base.publicKeys, html, screenshot: png });
+    expect(noReplay.scan.status).toBe('skipped');
+  });
+
+  it('skips the scan check when the snapshot hash already failed', () => {
+    const { receipt, signature, publicKeys } = setup({ scan });
+    const tampered = Buffer.from(html);
+    tampered[3] ^= 1;
+    const r = verifyReceipt({ signed: { receipt, signature }, publicKeys, html: tampered, screenshot: png, replay: replayWith(scan) });
+    expect(r.html.status).toBe('fail');
+    expect(r.scan.status).toBe('skipped');
+  });
+});
