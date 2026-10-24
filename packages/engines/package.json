@@ -1,0 +1,8 @@
+{
+  "name": "@icecrawl/engines",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@icecrawl/core": "workspace:*", "undici": "^6.21.0" }
+}

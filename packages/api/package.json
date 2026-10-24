@@ -1,0 +1,21 @@
+{
+  "name": "@icecrawl/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/app.ts" },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx src/cli/migrate.ts",
+    "keys:create": "tsx src/cli/keys.ts create"
+  },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/engines": "workspace:*",
+    "@icecrawl/scraper": "workspace:*",
+    "@icecrawl/trust": "workspace:*",
+    "fastify": "^5.1.0",
+    "postgres": "^3.4.5"
+  }
+}

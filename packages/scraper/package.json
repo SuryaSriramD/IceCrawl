@@ -1,0 +1,16 @@
+{
+  "name": "@icecrawl/scraper",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/engines": "workspace:*",
+    "@icecrawl/trust": "workspace:*",
+    "@mozilla/readability": "^0.5.0",
+    "linkedom": "^0.18.5",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": { "@types/turndown": "^5.0.5" }
+}

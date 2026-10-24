@@ -35,6 +35,7 @@ Monorepo, one clear job per package:
 | `queue` | BullMQ wrappers, rate limits, crawl frontier de-dup | core |
 | `worker` | Runs the scrape pipeline for jobs | engines, trust, core |
 | `engines` | `fetch`, `playwright`, `pdf`, `document`, `search` (SearXNG); each declares `{quality, features, maxTime}`; picker + waterfall | core |
+| `scraper` | Shared scrape pipeline: flags, picker, waterfall, HTML conversion, verdict, receipt. Called by `api` now and `worker` from phase 3. | core, engines, trust |
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
 | `sdk` | Typed client | none |
 | `mcp` | MCP server (stdio + streamable HTTP) | sdk |
