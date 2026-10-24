@@ -11,7 +11,9 @@ const base = {
   htmlBytes: Buffer.from('<html>hi</html>'),
   markdown: 'hi',
   converter: { name: 'icecrawl-convert', version: '1' },
-  options: { onlyMainContent: true, skipTlsVerification: true },
+  contentType: 'text/html; charset=utf-8',
+  screenshot: null,
+  options: { onlyMainContent: true, skipTlsVerification: true, removeBase64Images: true },
 };
 
 describe('sha256Hex', () => {
@@ -36,6 +38,15 @@ describe('buildReceipt', () => {
     const r = buildReceipt({ ...base, htmlBytes: null, markdown: null });
     expect(r.htmlSha256).toBeNull();
     expect(r.outputSha256).toBeNull();
+  });
+
+  it('hashes the screenshot and records the content type', () => {
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const r = buildReceipt({ ...base, screenshot: png });
+    expect(r.screenshotSha256).toBe(sha256Hex(png));
+    expect(r.contentType).toBe('text/html; charset=utf-8');
+    expect(r.options.removeBase64Images).toBe(true);
+    expect(buildReceipt(base).screenshotSha256).toBeNull();
   });
 });
 

@@ -61,6 +61,10 @@ const ctx = (path: string, over: Partial<EngineContext> = {}): EngineContext => 
   skipTlsVerification: true,
   allowPrivateNetworks: true,
   maxBytes: 100_000,
+  waitFor: 0,
+  mobile: false,
+  actions: [],
+  screenshot: null,
   ...over,
 });
 

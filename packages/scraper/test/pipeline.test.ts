@@ -132,3 +132,92 @@ describe('runScrape', () => {
     expect(r.accepted).toBe(false);
   });
 });
+import type { EngineContext } from '@icecrawl/engines';
+
+describe('runScrape with browser features', () => {
+  const PNG = Buffer.from('89504e470d0a1a0a0000', 'hex');
+
+  function browserEngine(seen: EngineContext[], over: Partial<EngineResult> = {}): Engine {
+    return {
+      name: 'browser',
+      quality: 20,
+      features: featureSet(['skipTlsVerification', 'waitFor', 'actions', 'screenshot', 'screenshot@fullScreen', 'mobile']),
+      maxReasonableTimeMs: 1000,
+      scrape: async (ctx) => {
+        seen.push(ctx);
+        return {
+          ...reply(okHtml),
+          screenshot: PNG,
+          actions: {
+            screenshots: [PNG],
+            scrapes: [{ url: 'https://example.com/final', html: '<p>x</p>' }],
+            javascriptReturns: [{ type: 'number', value: 42 }],
+            pdfs: [],
+          },
+          ...over,
+        };
+      },
+    };
+  }
+
+  it('passes waitFor, mobile, actions and screenshot options to the engine', async () => {
+    const seen: EngineContext[] = [];
+    await run([browserEngine(seen)], {
+      waitFor: 250,
+      mobile: true,
+      actions: [{ type: 'click', selector: '#go' }],
+      formats: ['markdown', { type: 'screenshot', fullPage: true }],
+    });
+    expect(seen[0]).toMatchObject({
+      waitFor: 250,
+      mobile: true,
+      actions: [{ type: 'click', selector: '#go', all: false }],
+      screenshot: { fullPage: true },
+    });
+  });
+
+  it('passes safe defaults when no browser features are requested', async () => {
+    const seen: EngineContext[] = [];
+    await run([browserEngine(seen)]);
+    expect(seen[0]).toMatchObject({ waitFor: 0, mobile: false, actions: [], screenshot: null });
+  });
+
+  it('returns the screenshot and action outputs and hashes the screenshot into the receipt', async () => {
+    const r = await run([browserEngine([])], { formats: ['markdown', 'screenshot'] });
+    expect(r.screenshot).toEqual(PNG);
+    expect(r.actions?.javascriptReturns).toEqual([{ type: 'number', value: 42 }]);
+    expect(r.receipt.screenshotSha256).toBe(sha256Hex(PNG));
+    expect(r.receipt.contentType).toContain('text/html');
+  });
+
+  it('records the conversion options in the receipt so the conversion can be replayed', async () => {
+    const r = await run([browserEngine([])], { includeTags: ['article'], excludeTags: ['nav'], removeBase64Images: false });
+    expect(r.receipt.options).toEqual({
+      onlyMainContent: true,
+      skipTlsVerification: true,
+      includeTags: ['article'],
+      excludeTags: ['nav'],
+      removeBase64Images: false,
+    });
+  });
+
+  it('warns when screenshot quality is requested', async () => {
+    const r = await run([browserEngine([])], { formats: [{ type: 'screenshot', quality: 50 }] });
+    expect(r.warnings.join(' ')).toContain('quality');
+  });
+
+  it('treats ACTION_FAILED as fatal (no waterfall)', async () => {
+    const calls: string[] = [];
+    const failing = { ...browserEngine([]), scrape: async () => { calls.push('browser'); throw new IceCrawlError('ACTION_FAILED', 'click failed'); } };
+    await expect(run([failing, engine('fallback', 5, reply(okHtml), calls)], { actions: [{ type: 'click', selector: '#x' }] })).rejects.toMatchObject({
+      code: 'ACTION_FAILED',
+    });
+    expect(calls).toEqual(['browser']);
+  });
+
+  it('reports an unsupported screenshot as a warning when the engine cannot take one', async () => {
+    const r = await run([engine('a', 10, reply(okHtml))], { formats: ['markdown', 'screenshot'] });
+    expect(r.screenshot).toBeNull();
+    expect(r.warnings.join(' ')).toContain('screenshot');
+  });
+});

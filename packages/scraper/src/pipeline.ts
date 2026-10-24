@@ -7,7 +7,7 @@ import {
   type Receipt,
   type Verdict,
 } from '@icecrawl/core';
-import { pickEngines, type Engine, type EngineResult } from '@icecrawl/engines';
+import { pickEngines, type ActionOutputs, type Engine, type EngineResult } from '@icecrawl/engines';
 import { buildReceipt, classify, sha256Hex } from '@icecrawl/trust';
 import { contentKind, decodeBody } from './decode';
 import { CONVERTER, convertHtml } from './convert';
@@ -45,6 +45,8 @@ export interface ScrapeRun {
   language: string | null;
   receipt: Receipt;
   snapshot: { bytes: Uint8Array; sha256: string };
+  screenshot: Uint8Array | null;
+  actions: ActionOutputs | null;
   warnings: string[];
 }
 
@@ -53,6 +55,7 @@ const FATAL: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   'VALIDATION',
   'UNSUPPORTED_OPTION',
   'RESPONSE_TOO_LARGE',
+  'ACTION_FAILED',
 ]);
 
 interface Analyzed {
@@ -118,7 +121,7 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     throw new IceCrawlError('NO_ENGINE', `No available engine supports: ${[...flags].join(', ')}`);
   }
 
-  const ignored = [...picks[0].unsupported].filter((f) => !f.startsWith('screenshot'));
+  const ignored = [...picks[0].unsupported];
   if (ignored.length > 0) {
     warnings.push(`Engine "${picks[0].engine.name}" does not support: ${ignored.join(', ')}; those options were ignored.`);
   }
@@ -138,6 +141,10 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
         skipTlsVerification: request.skipTlsVerification,
         allowPrivateNetworks: deps.config.allowPrivateNetworks,
         maxBytes: deps.config.maxResponseBytes,
+        waitFor: request.waitFor,
+        mobile: request.mobile,
+        actions: request.actions ?? [],
+        screenshot: n.screenshot,
       });
     } catch (err) {
       const e = err instanceof IceCrawlError ? err : new IceCrawlError('TARGET_ERROR', String(err));
@@ -180,7 +187,15 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     htmlBytes: last.result.body,
     markdown: last.markdown,
     converter: CONVERTER,
-    options: { onlyMainContent: request.onlyMainContent, skipTlsVerification: request.skipTlsVerification },
+    contentType: last.result.contentType,
+    screenshot: last.result.screenshot ?? null,
+    options: {
+      onlyMainContent: request.onlyMainContent,
+      skipTlsVerification: request.skipTlsVerification,
+      includeTags: request.includeTags,
+      excludeTags: request.excludeTags,
+      removeBase64Images: request.removeBase64Images,
+    },
   });
 
   return {
@@ -203,6 +218,8 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     language: last.language,
     receipt,
     snapshot: { bytes: last.result.body, sha256: sha256Hex(last.result.body) },
+    screenshot: last.result.screenshot ?? null,
+    actions: last.result.actions ?? null,
     warnings,
   };
 }
