@@ -1,0 +1,18 @@
+{
+  "name": "@icecrawl/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "bin": { "icecrawl-mcp": "./bin/icecrawl-mcp.mjs" },
+  "scripts": { "start": "node bin/icecrawl-mcp.mjs" },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/scraper": "workspace:*",
+    "@icecrawl/sdk": "workspace:*",
+    "@icecrawl/trust": "workspace:*",
+    "@modelcontextprotocol/sdk": "~1.32.2",
+    "tsx": "^4.19.0",
+    "zod": "^3.25.0"
+  }
+}
