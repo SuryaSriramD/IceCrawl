@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": { "node": ">=20.12" },
+  "pnpm": { "overrides": { "light-my-request": "6.6.0" } },
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",

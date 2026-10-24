@@ -1,0 +1,191 @@
+import { randomUUID } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
+import { sha256Hex } from '@icecrawl/trust';
+import { fakeEngine, makeApp, okHtml } from './helpers';
+
+describe('auth', () => {
+  it('rejects a missing token with 401 UNAUTHORIZED', async () => {
+    const { app } = await makeApp();
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', payload: { url: 'https://example.com' } });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({ success: false, code: 'UNAUTHORIZED' });
+  });
+
+  it('rejects an unknown or revoked token', async () => {
+    const { app, store, keyId } = await makeApp();
+    const bad = await app.inject({ method: 'POST', url: '/v2/scrape', headers: { authorization: 'Bearer ic-nope' }, payload: { url: 'https://example.com' } });
+    expect(bad.statusCode).toBe(401);
+    await store.revokeApiKey(keyId);
+    const revoked = await app.inject({ method: 'POST', url: '/v2/scrape', headers: { authorization: 'Bearer ic-test' }, payload: { url: 'https://example.com' } });
+    expect(revoked.statusCode).toBe(401);
+  });
+
+  it('skips auth when disabled', async () => {
+    const { app } = await makeApp({ useAuth: false });
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', payload: { url: 'https://example.com' } });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('serves /health without auth', async () => {
+    const { app } = await makeApp();
+    expect((await app.inject({ method: 'GET', url: '/health' })).json()).toEqual({ ok: true });
+  });
+});
+
+describe('POST /v2/scrape', () => {
+  it('returns a v2-shaped success envelope with metadata and a trust block', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.markdown).toContain('Hello world');
+    expect(body.data.html).toBeUndefined();
+    expect(body.data.metadata).toMatchObject({
+      title: 'Test Page',
+      description: 'd',
+      language: 'en',
+      sourceURL: 'https://example.com/start',
+      url: 'https://example.com/final',
+      statusCode: 200,
+    });
+    expect(body.data.trust).toMatchObject({ verdict: 'ok', engine: 'fake' });
+    expect(body.data.trust.receiptId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('returns only the requested formats', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', formats: ['html', 'rawHtml', 'links'] },
+    });
+    const d = res.json().data;
+    expect(d.markdown).toBeUndefined();
+    expect(d.rawHtml).toBe(okHtml);
+    expect(typeof d.html).toBe('string');
+    expect(d.links).toEqual(['https://example.com/next']);
+  });
+
+  it('adds a warning for unsupported formats and ignored options', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', formats: ['markdown', 'screenshot'], waitFor: 100 },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.warning).toContain('screenshot');
+    expect(res.json().data.warning).toContain('waitFor');
+  });
+
+  it('answers 400 VALIDATION for a bad body', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'nope' } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({ success: false, code: 'VALIDATION' });
+  });
+
+  it('answers 400 for malformed JSON', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: { ...auth, 'content-type': 'application/json' }, payload: '{bad',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('answers 422 NO_ENGINE when actions are requested but no engine supports them', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', actions: [{ type: 'click', selector: '#a' }] },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().code).toBe('NO_ENGINE');
+  });
+
+  it('fails honestly on a captcha page: success false, typed code, trust block', async () => {
+    const engine = fakeEngine({ html: '<html><body><div class="g-recaptcha"></div><p>Hold on</p></body></html>' });
+    const { app, auth } = await makeApp({ engine });
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    expect(res.statusCode).toBe(502);
+    const body = res.json();
+    expect(body).toMatchObject({ success: false, code: 'CAPTCHA' });
+    expect(body.trust).toMatchObject({ verdict: 'captcha' });
+    expect(body.data).toBeUndefined();
+  });
+
+  it('fails a 403 page as BLOCKED instead of returning the block page as content', async () => {
+    const { app, auth } = await makeApp({ engine: fakeEngine({ statusCode: 403, html: '<html>Forbidden</html>' }) });
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    expect(res.json()).toMatchObject({ success: false, code: 'BLOCKED' });
+  });
+
+  it('applies strict mode to uncertain pages', async () => {
+    const html = `<html><body><p>This page has some text.</p><!--${'x'.repeat(60000)}--></body></html>`;
+    const lenient = await makeApp({ engine: fakeEngine({ html }) });
+    expect((await lenient.app.inject({ method: 'POST', url: '/v2/scrape', headers: lenient.auth, payload: { url: 'https://example.com/s' } })).json().data.trust.verdict).toBe('uncertain');
+    const strict = await makeApp({ engine: fakeEngine({ html }), strict: true });
+    const res = await strict.app.inject({ method: 'POST', url: '/v2/scrape', headers: strict.auth, payload: { url: 'https://example.com/s' } });
+    expect(res.json()).toMatchObject({ success: false, code: 'UNCERTAIN' });
+  });
+});
+
+describe('persistence and retrieval', () => {
+  it('stores the snapshot whose hash is in the receipt and serves receipt + replay', async () => {
+    const { app, auth, snapshots } = await makeApp();
+    const post = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = post.json().data.trust.receiptId as string;
+
+    const receipt = await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: auth });
+    expect(receipt.statusCode).toBe(200);
+    const r = receipt.json().data;
+    expect(r.htmlSha256).toBe(sha256Hex(Buffer.from(okHtml)));
+    expect(r.engineChain[0]).toMatchObject({ engine: 'fake', verdict: 'ok' });
+    expect(await snapshots.get(`${r.htmlSha256.slice(0, 2)}/${r.htmlSha256}`)).not.toBeNull();
+
+    const replay = await app.inject({ method: 'GET', url: `/v2/scrape/${id}`, headers: auth });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toEqual(post.json());
+  });
+
+  it('stores failed scrapes too, so failures are auditable', async () => {
+    const { app, auth } = await makeApp({ engine: fakeEngine({ statusCode: 429, html: '<html>slow down</html>' }) });
+    const post = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = post.json().trust.receiptId as string;
+    const receipt = await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: auth });
+    expect(receipt.json().data.engineChain[0].verdict).toBe('blocked');
+  });
+
+  it('returns 404 for unknown or malformed ids and hides other keys\' scrapes', async () => {
+    const { app, auth, store } = await makeApp();
+    expect((await app.inject({ method: 'GET', url: `/v2/scrape/${randomUUID()}`, headers: auth })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/v2/scrape/not-a-uuid', headers: auth })).statusCode).toBe(404);
+
+    const post = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = post.json().data.trust.receiptId as string;
+    await store.createApiKey({ id: randomUUID(), hash: sha256Hex('ic-other'), name: 'other' });
+    const other = { authorization: 'Bearer ic-other' };
+    expect((await app.inject({ method: 'GET', url: `/v2/scrape/${id}`, headers: other })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: other })).statusCode).toBe(404);
+  });
+});
+
+describe('planned endpoints', () => {
+  it.each([['crawl', 3], ['map', 3], ['batch/scrape', 3], ['search', 5], ['extract', 5], ['parse', 7], ['interact', 8], ['agent', 8], ['monitor', 9]])(
+    '/v2/%s answers 501 naming phase %i',
+    async (path, phase) => {
+      const { app, auth } = await makeApp();
+      const res = await app.inject({ method: 'POST', url: `/v2/${path}`, headers: auth, payload: {} });
+      expect(res.statusCode).toBe(501);
+      expect(res.json()).toMatchObject({ success: false, code: 'NOT_IMPLEMENTED' });
+      expect(res.json().error).toContain(`phase ${phase}`);
+    },
+  );
+
+  it('answers 404 for anything else', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({ method: 'GET', url: '/v2/nothing-here', headers: auth });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('NOT_FOUND');
+  });
+});
