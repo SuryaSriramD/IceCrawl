@@ -153,6 +153,14 @@ describe('report shape', () => {
     expect('findings' in summarizeScan(r)).toBe(false);
   });
 
+  it('cannot be stalled by a huge or adversarial style attribute', () => {
+    for (const style of ['height:0;'.repeat(100_000), 'color:white;'.repeat(80_000)]) {
+      const started = Date.now();
+      scan('ok', `<div style="${style}">x</div>`);
+      expect(Date.now() - started).toBeLessThan(2000);
+    }
+  });
+
   it('is fast on large benign documents', () => {
     const big = 'The committee reviewed the annual report and approved the budget for the coming year. '.repeat(15000);
     const started = Date.now();

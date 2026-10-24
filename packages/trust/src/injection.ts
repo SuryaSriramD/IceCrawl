@@ -116,7 +116,7 @@ const STRIP = /[​‌‍⁠﻿­᠎‪-‮⁦-⁩]/g;
 const normalize = (s: string): string => s.normalize('NFKC').replace(STRIP, '').replace(/[^\S\n]+/g, ' ');
 
 const HIDING_STYLE =
-  /display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?:px|pt|em|rem)?\s*(?:;|$)|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|(?:left|top|text-indent)\s*:\s*-\d{3,}px|height\s*:\s*0(?:px)?[^;]*;[^"]*overflow\s*:\s*hidden|color\s*:\s*(?:#fff(?:fff)?|white)\b[^"]*background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white)\b/i;
+  /display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?:px|pt|em|rem)?\s*(?:;|$)|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|(?:left|top|text-indent)\s*:\s*-\d{3,}px|height\s*:\s*0(?:px)?[^;]{0,40};[^"]{0,200}overflow\s*:\s*hidden|color\s*:\s*(?:#fff(?:fff)?|white)\b[^"]{0,200}background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white)\b/i;
 const COMMENT = /<!--(?!\[if)((?:(?!<!--)[\s\S]){8,2000}?)-->/g;
 
 type Internal = InjectionFinding & { key: string };
@@ -206,7 +206,7 @@ function hiddenTexts(html: string): string[] {
   document.querySelectorAll('[hidden],[style]').forEach((el) => {
     const tag = el.tagName.toLowerCase();
     if (tag === 'script' || tag === 'style' || tag === 'noscript' || tag === 'template') return;
-    if (!el.hasAttribute('hidden') && !HIDING_STYLE.test(el.getAttribute('style') ?? '')) return;
+    if (!el.hasAttribute('hidden') && !HIDING_STYLE.test((el.getAttribute('style') ?? '').slice(0, 2000))) return;
     // textContent is O(subtree); nested hidden elements would be quadratic, so cap how many we read.
     if (++inspected > MAX_HIDDEN_ELEMENTS) return;
     const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 4000);
