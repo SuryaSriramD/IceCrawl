@@ -1096,8 +1096,6 @@ In `packages/api/test/store.contract.ts` add near the top (after the existing im
       expect(await store.reserveUrls(job.id, 4)).toBe(2);
       expect(await store.reserveUrls(job.id, 1)).toBe(0);
       expect((await store.getJob(job.id))?.total).toBe(5);
-      const results = await Promise.all([1, 2, 3].map(() => store.reserveUrls((async () => { const j = newJob({ limit: 4 }); await store.createJob(j); return j.id; })() as unknown as string, 0)));
-      expect(results).toBeDefined();
     });
 
     it('never grants more than the limit under concurrent reservations', async () => {
@@ -1205,8 +1203,6 @@ In `packages/api/test/store.contract.ts` add near the top (after the existing im
       expect(await store.getReceipt(id)).toBeNull();
     });
 ```
-Then fix one sloppy line: in the test `reserves URLs up to the limit atomically` delete the last three lines (the `const results = …` and `expect(results).toBeDefined();` lines); the concurrent behaviour is covered by the next test.
-
 - [ ] **Step 2: Run to verify failure**
 
 Run: `DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl pnpm vitest run packages/api/test/store.memory.test.ts packages/api/test/store.pg.test.ts`
@@ -1868,7 +1864,7 @@ export class MemoryQueues implements JobQueues {
     }
     return fresh;
   }
-  async acquireSlot(): Promise<SlotResult> {
+  async acquireSlot(_jobId?: string, _o?: { maxConcurrency?: number; delayMs?: number }): Promise<SlotResult> {
     const wait = this.busy.shift();
     if (wait !== undefined) return { ok: false, retryInMs: wait };
     return { ok: true, release: async () => {} };
@@ -2848,7 +2844,7 @@ describe('failures, retries, delays and cancellation', () => {
       site: { [`${E}/`]: { html: pageHtml('Home') }, [`${E}/b`]: { html: pageHtml('B') } },
       files: { [`${E}/robots.txt`]: { body: 'User-agent: *\nCrawl-delay: 2\n' } },
     });
-    queues.acquireSlot = async (_id, o) => (seen.push(o), { ok: true, release: async () => {} });
+    queues.acquireSlot = async (_id, o) => (seen.push(o ?? {}), { ok: true, release: async () => {} });
     const viaRobots = await createCrawl(store, { url: `${E}/`, sitemap: 'skip' });
     await queues.addDiscover(viaRobots);
     await drain(deps, queues);
@@ -2933,7 +2929,7 @@ describe('webhooks from the processor', () => {
     const events = queues.webhooks.map((w) => JSON.parse(w.body));
     expect(events.map((e) => e.type)).toEqual(['crawl.started', 'crawl.page', 'crawl.failed']);
     expect(events[1]).toMatchObject({ success: false, data: [] });
-    expect(events[1].error).toContain('BLOCKED'.toLowerCase().length ? '' : '');
+    expect(typeof events[1].error).toBe('string');
     expect(events[2]).toMatchObject({ success: false });
   });
 
@@ -2946,8 +2942,6 @@ describe('webhooks from the processor', () => {
   });
 });
 ```
-Cleanup note for the executor: the assertion `expect(events[1].error).toContain('BLOCKED'.toLowerCase().length ? '' : '')` is a placeholder that always passes; replace it with `expect(typeof events[1].error).toBe('string')`.
-
 - [ ] **Step 3: Run to verify failure**
 
 Run: `pnpm vitest run packages/api/test/processor.test.ts`
@@ -3220,13 +3214,12 @@ git commit -m "feat(api): crawl and batch job processor with robots, sitemap see
 
 - [ ] **Step 1: Write the failing tests**
 
-Add this helper block to the end of `packages/api/test/jobs-helpers.ts`:
+Add these two imports to the top import list of `packages/api/test/jobs-helpers.ts`:
 ```ts
-import { buildApp } from '../src/app';
 import { sha256Hex } from '@icecrawl/trust';
-import { fakeFetcher as _ff } from './jobs-helpers';
+import { buildApp } from '../src/app';
 ```
-Do NOT add those two imports at the end of the file (imports belong at the top). Instead, add `import { buildApp } from '../src/app';` and `import { sha256Hex } from '@icecrawl/trust';` to the top import list of `jobs-helpers.ts`, and append:
+and append this helper to the end of the file:
 ```ts
 export async function makeJobsApp(
   over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean } = {},
@@ -3377,10 +3370,6 @@ describe('GET /v2/crawl/:id', () => {
     expect((await get(t, `/v2/batch/scrape/${id}`)).statusCode).toBe(404);
     expect((await get(t, '/v2/crawl/not-a-uuid')).statusCode).toBe(404);
     expect((await get(t, `/v2/crawl/${randomUUID()}`)).statusCode).toBe(404);
-
-    const old = await t.store.getJob(id);
-    expect(old).not.toBeNull();
-    await t.store.createJob({ id: randomUUID(), type: 'crawl', apiKeyId: t.keyId, request: { url: E }, webhook: null, limit: 1, expiresAt: new Date(Date.now() - 1000) });
   });
 
   it('treats an expired job as not found', async () => {
@@ -3668,7 +3657,7 @@ In `packages/api/src/app.ts`:
 - [ ] **Step 4: Run to verify pass**
 
 Run: `DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl REDIS_URL=redis://localhost:6379 pnpm test && pnpm typecheck`
-Expected: PASS. Fix-forward notes: (a) `req.protocol`/`req.headers.host` give `http://localhost:80` under `inject`; the tests encode that. (b) The test `hides jobs from other keys…` ends with a stray `createJob` for an expired job that is not asserted; leave it (harmless) or delete those last two lines. (c) Fastify allows a static route (`/crawl/active`, `/crawl/params-preview`) beside `/crawl/:id`; if `GET /crawl/active` is routed to `:id`, confirm the static routes are registered (they are).
+Expected: PASS. Fix-forward notes: (a) `req.protocol`/`req.headers.host` give `http://localhost:80` under `inject`; the tests encode that. (b) Fastify allows a static route (`/crawl/active`, `/crawl/params-preview`) beside `/crawl/:id`; if `GET /crawl/active` is routed to `:id`, confirm the static routes are registered (they are).
 
 - [ ] **Step 5: Commit**
 
@@ -4164,11 +4153,11 @@ describe.skipIf(!databaseUrl || !redisUrl)('end to end: crawl, batch, map and we
     const receipt = (await app.inject({ method: 'GET', url: `/v2/receipts/${receiptId}`, headers: auth })).json();
     expect(receipt.success).toBe(true);
 
-    await until(async () => hooks.some((h) => JSON.parse(h.body).type === 'crawl.completed') || false);
+    await until(async () => hooks.length >= 10 || false);
     const events = hooks.map((h) => JSON.parse(h.body));
-    expect(events[0].type).toBe('crawl.started');
+    expect(events.filter((e) => e.type === 'crawl.started')).toHaveLength(1);
     expect(events.filter((e) => e.type === 'crawl.page')).toHaveLength(8);
-    expect(events.at(-1).type).toBe('crawl.completed');
+    expect(events.filter((e) => e.type === 'crawl.completed')).toHaveLength(1);
     expect(events.every((e) => e.id === id && e.metadata.run === 'e2e')).toBe(true);
     for (const h of hooks) {
       const expected = `sha256=${createHmac('sha256', secret).update(h.body).digest('hex')}`;
@@ -4188,7 +4177,7 @@ describe.skipIf(!databaseUrl || !redisUrl)('end to end: crawl, batch, map and we
   });
 
   it('cancels a slow crawl and stops scraping', async () => {
-    const { id } = await start({ url: `${o()}/slow1`, delay: 1, sitemap: 'skip' });
+    const { id } = await start({ url: `${o()}/slow1`, delay: 1, sitemap: 'skip', crawlEntireDomain: true });
     await until(async () => ((await app.inject({ method: 'GET', url: `/v2/crawl/${id}`, headers: auth })).json().completed >= 1) || false);
     const del = await app.inject({ method: 'DELETE', url: `/v2/crawl/${id}`, headers: auth });
     expect(del.json()).toEqual({ status: 'cancelled' });
@@ -4534,7 +4523,7 @@ Run: `DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl REDIS_UR
 Expected: 5 tests PASS (not skipped). Repeat 3 times to check for flakiness.
 
 Run: `DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl REDIS_URL=redis://localhost:6379 pnpm test && pnpm typecheck`
-Expected: every file passes, nothing skipped, typecheck exits 0. Fix-forward notes: (a) the page-count assertions (`total` 8, `completed` 6, 8 `crawl.page` events) follow from the fixture: pages `/ /a /a/deep /b /blog/post-1 /sitemap-only` succeed, `/missing` fails, `/private/secret` is robots-blocked; if the real count differs, trace which URL is missing before changing numbers. (b) The cancel test tolerates one extra in-flight page. (c) If the webhook test sees fewer than 8 page events because webhook jobs are still queued, the `until(... crawl.completed)` wait must also cover the last page events; completed is queued last, so the check is sufficient only if the webhook worker processes in order; with concurrency 4 it may not: wait until `hooks.length >= 10` instead (1 started + 8 page + 1 completed) and keep the other assertions.
+Expected: every file passes, nothing skipped, typecheck exits 0. Fix-forward notes: (a) the page-count assertions (`total` 8, `completed` 6, 8 `crawl.page` events) follow from the fixture: pages `/ /a /a/deep /b /blog/post-1 /sitemap-only` succeed, `/missing` fails, `/private/secret` is robots-blocked; if the real count differs, trace which URL is missing before changing numbers. (b) The cancel test tolerates one extra in-flight page. (c) Webhook deliveries run concurrently, so the test waits for all 10 deliveries (1 started + 8 page + 1 completed) and does not assert delivery order; do not add an ordering assertion.
 
 - [ ] **Step 6: Compose, env, docs**
 
