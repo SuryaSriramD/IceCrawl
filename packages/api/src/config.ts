@@ -6,6 +6,10 @@ export interface AppConfig {
   allowPrivateNetworks: boolean;
   strict: boolean;
   maxResponseBytes: number;
+  browserEnabled: boolean;
+  preferBrowser: boolean;
+  browserConcurrency: number;
+  browserNoSandbox: boolean;
   signingKeyFile: string;
 }
 
@@ -18,6 +22,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     allowPrivateNetworks: env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true',
     strict: env.ICECRAWL_STRICT === 'true',
     maxResponseBytes: Number(env.ICECRAWL_MAX_RESPONSE_BYTES ?? 10 * 1024 * 1024),
+    browserEnabled: env.ICECRAWL_BROWSER !== 'false',
+    preferBrowser: env.ICECRAWL_PREFER_BROWSER !== 'false',
+    browserConcurrency: Number(env.ICECRAWL_BROWSER_CONCURRENCY ?? 4),
+    browserNoSandbox: env.ICECRAWL_BROWSER_NO_SANDBOX === 'true',
     signingKeyFile: env.ICECRAWL_SIGNING_KEY_FILE ?? './data/signing-key.pem',
   };
 }

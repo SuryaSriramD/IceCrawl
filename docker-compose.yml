@@ -30,8 +30,12 @@ services:
       DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
       REDIS_URL: redis://redis:6379
       ICECRAWL_SNAPSHOT_DIR: /data/snapshots
+      ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
+      ICECRAWL_BROWSER_NO_SANDBOX: "true"
     ports: ["3002:3002"]
-    volumes: ["snapshots:/data/snapshots"]
+    volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
+    shm_size: "1gb"
 volumes:
   pgdata: {}
   snapshots: {}
+  signing: {}

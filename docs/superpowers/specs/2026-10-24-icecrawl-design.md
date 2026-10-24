@@ -110,6 +110,8 @@ Typed codes: `BLOCKED, LOGIN_WALL, CAPTCHA, TIMEOUT, DNS, SSL, UNSUPPORTED_OPTIO
 
 Defaults: SSRF guard (block private, loopback, link-local after DNS resolution and on every redirect), response size caps, robots.txt respected for crawl, per-scrape wall-clock limit, API keys stored hashed.
 
+- Browser traffic is forced through an in-process egress proxy that enforces the SSRF guard at connect time (phase 2). Receipts are signed with Ed25519 and carry the content type and conversion options needed to replay the conversion (phase 2).
+
 ## 9. Testing
 
 1. Unit: picker (table-driven from the engine report's worked examples), verdict classifier, receipt canonicalization.
