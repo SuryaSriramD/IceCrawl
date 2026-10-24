@@ -1,10 +1,10 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
-import { IceCrawlError, normalizeScrapeRequest } from '@icecrawl/core';
+import { IceCrawlError, normalizeScrapeRequest, type SignedReceipt } from '@icecrawl/core';
 import type { Engine } from '@icecrawl/engines';
 import { runScrape, type ScraperConfig } from '@icecrawl/scraper';
-import { sha256Hex } from '@icecrawl/trust';
+import { sha256Hex, signReceipt, type PrivateSigningKey } from '@icecrawl/trust';
 import { buildResponse } from './response';
-import type { SnapshotStore, Store } from './store/types';
+import { snapshotKey, type SnapshotStore, type Store } from './store/types';
 
 export interface AppDeps {
   store: Store;
@@ -12,6 +12,7 @@ export interface AppDeps {
   engines: readonly Engine[];
   scraper: ScraperConfig;
   useAuth: boolean;
+  signer?: PrivateSigningKey;
 }
 
 declare module 'fastify' {
@@ -65,6 +66,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   app.get('/health', async () => ({ ok: true }));
 
+  app.get('/.well-known/icecrawl-keys.json', async () => ({ keys: await deps.store.listPublicKeys() }));
+
   app.register(
     async (v2) => {
       v2.addHook('preHandler', async (req) => {
@@ -81,6 +84,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         const run = await runScrape({ engines: deps.engines, config: deps.scraper }, normalized);
         const { status, payload } = buildResponse(run, normalized.formats);
         const snapshot = await deps.snapshots.put(run.snapshot.bytes);
+        if (run.screenshot) await deps.snapshots.put(run.screenshot);
+        const signature = deps.signer ? signReceipt(run.receipt, deps.signer) : null;
         await deps.store.saveScrape(
           {
             id: run.id,
@@ -98,6 +103,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
           },
           run.receipt,
           snapshot,
+          signature,
         );
         return reply.status(status).send(payload);
       });
@@ -108,13 +114,32 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         return rec.response;
       });
 
-      v2.get<{ Params: { id: string } }>('/receipts/:id', async (req) => {
-        const rec = UUID.test(req.params.id) ? await deps.store.getScrape(req.params.id) : null;
-        const receipt = rec ? await deps.store.getReceipt(rec.id) : null;
-        if (!rec || !receipt || (deps.useAuth && rec.apiKeyId !== req.apiKeyId)) {
+      const loadReceipt = async (req: FastifyRequest, id: string): Promise<SignedReceipt> => {
+        const rec = UUID.test(id) ? await deps.store.getScrape(id) : null;
+        const signed = rec ? await deps.store.getSignedReceipt(rec.id) : null;
+        if (!rec || !signed || (deps.useAuth && rec.apiKeyId !== req.apiKeyId)) {
           throw new IceCrawlError('NOT_FOUND', 'Receipt not found');
         }
-        return { success: true, data: receipt };
+        return signed;
+      };
+
+      v2.get<{ Params: { id: string } }>('/receipts/:id', async (req) => {
+        const { receipt, signature } = await loadReceipt(req, req.params.id);
+        return { success: true, data: receipt, signature };
+      });
+
+      v2.get<{ Params: { id: string } }>('/receipts/:id/snapshot', async (req, reply) => {
+        const { receipt } = await loadReceipt(req, req.params.id);
+        const bytes = receipt.htmlSha256 ? await deps.snapshots.get(snapshotKey(receipt.htmlSha256)) : null;
+        if (!bytes) throw new IceCrawlError('NOT_FOUND', 'Snapshot not found');
+        return reply.header('content-type', receipt.contentType || 'application/octet-stream').send(Buffer.from(bytes));
+      });
+
+      v2.get<{ Params: { id: string } }>('/receipts/:id/screenshot', async (req, reply) => {
+        const { receipt } = await loadReceipt(req, req.params.id);
+        const bytes = receipt.screenshotSha256 ? await deps.snapshots.get(snapshotKey(receipt.screenshotSha256)) : null;
+        if (!bytes) throw new IceCrawlError('NOT_FOUND', 'Screenshot not found');
+        return reply.header('content-type', 'image/png').send(Buffer.from(bytes));
       });
     },
     { prefix: '/v2' },

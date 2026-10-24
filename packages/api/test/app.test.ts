@@ -189,3 +189,131 @@ describe('planned endpoints', () => {
     expect(res.json().code).toBe('NOT_FOUND');
   });
 });
+
+import { featureSet, type Engine } from '@icecrawl/engines';
+import { generateSigningKey, verifySignature } from '@icecrawl/trust';
+import { snapshotKey } from '../src/store/types';
+
+const PNG = Buffer.from('89504e470d0a1a0a0000deadbeef', 'hex');
+
+function browserEngine(): Engine {
+  return {
+    name: 'browser',
+    quality: 20,
+    features: featureSet(['skipTlsVerification', 'waitFor', 'actions', 'screenshot', 'screenshot@fullScreen', 'mobile']),
+    maxReasonableTimeMs: 1000,
+    scrape: async () => ({
+      finalUrl: 'https://example.com/final',
+      statusCode: 200,
+      headers: {},
+      body: Buffer.from(okHtml),
+      contentType: 'text/html; charset=utf-8',
+      truncated: false,
+      screenshot: PNG,
+      actions: {
+        screenshots: [PNG],
+        scrapes: [{ url: 'https://example.com/final', html: '<p>x</p>' }],
+        javascriptReturns: [{ type: 'number', value: 42 }],
+        pdfs: [Buffer.from('%PDF-1.4')],
+      },
+    }),
+  };
+}
+
+describe('screenshots and actions', () => {
+  it('returns the screenshot as a PNG data URI and the action outputs', async () => {
+    const { app, auth } = await makeApp({ engine: browserEngine() });
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', formats: ['markdown', 'screenshot'], actions: [{ type: 'scrape' }] },
+    });
+    expect(res.statusCode).toBe(200);
+    const d = res.json().data;
+    expect(d.screenshot).toBe(`data:image/png;base64,${PNG.toString('base64')}`);
+    expect(d.actions).toEqual({
+      screenshots: [`data:image/png;base64,${PNG.toString('base64')}`],
+      scrapes: [{ url: 'https://example.com/final', html: '<p>x</p>' }],
+      javascriptReturns: [{ type: 'number', value: 42 }],
+      pdfs: [Buffer.from('%PDF-1.4').toString('base64')],
+    });
+  });
+
+  it('does not include a screenshot unless requested', async () => {
+    const { app, auth } = await makeApp({ engine: browserEngine() });
+    const res = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    expect(res.json().data.screenshot).toBeUndefined();
+  });
+
+  it('warns when a screenshot was requested but the engine produced none', async () => {
+    const { app, auth } = await makeApp();
+    const res = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', formats: ['markdown', 'screenshot'] },
+    });
+    expect(res.json().data.screenshot).toBeUndefined();
+    expect(res.json().data.warning).toContain('screenshot');
+  });
+
+  it('serves the stored snapshot and screenshot whose hashes match the receipt', async () => {
+    const { app, auth } = await makeApp({ engine: browserEngine() });
+    const post = await app.inject({
+      method: 'POST', url: '/v2/scrape', headers: auth,
+      payload: { url: 'https://example.com/start', formats: ['markdown', 'screenshot'] },
+    });
+    const id = post.json().data.trust.receiptId as string;
+    const receipt = (await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: auth })).json().data;
+    expect(receipt.screenshotSha256).toBe(sha256Hex(PNG));
+
+    const snap = await app.inject({ method: 'GET', url: `/v2/receipts/${id}/snapshot`, headers: auth });
+    expect(snap.statusCode).toBe(200);
+    expect(snap.headers['content-type']).toContain('text/html');
+    expect(sha256Hex(snap.rawPayload)).toBe(receipt.htmlSha256);
+
+    const shot = await app.inject({ method: 'GET', url: `/v2/receipts/${id}/screenshot`, headers: auth });
+    expect(shot.headers['content-type']).toBe('image/png');
+    expect(sha256Hex(shot.rawPayload)).toBe(receipt.screenshotSha256);
+    expect(snapshotKey(receipt.screenshotSha256)).toMatch(/^[0-9a-f]{2}\//);
+  });
+
+  it('answers 404 for a screenshot when none was taken, and hides artifacts from other keys', async () => {
+    const { app, auth, store } = await makeApp();
+    const post = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = post.json().data.trust.receiptId as string;
+    expect((await app.inject({ method: 'GET', url: `/v2/receipts/${id}/screenshot`, headers: auth })).statusCode).toBe(404);
+    await store.createApiKey({ id: randomUUID(), hash: sha256Hex('ic-other2'), name: 'o' });
+    const other = { authorization: 'Bearer ic-other2' };
+    expect((await app.inject({ method: 'GET', url: `/v2/receipts/${id}/snapshot`, headers: other })).statusCode).toBe(404);
+  });
+});
+
+describe('signed receipts', () => {
+  it('signs every receipt (including failures) and publishes the verifying key', async () => {
+    const { privateKey, publicKey } = generateSigningKey();
+    const { app, auth, store } = await makeApp({ signer: privateKey });
+    await store.registerPublicKey(publicKey);
+
+    const ok = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = ok.json().data.trust.receiptId as string;
+    const body = (await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: auth })).json();
+    expect(body.signature).toMatchObject({ alg: 'Ed25519', keyId: privateKey.keyId });
+
+    const keys = (await app.inject({ method: 'GET', url: '/.well-known/icecrawl-keys.json' })).json().keys;
+    expect(keys).toHaveLength(1);
+    expect(verifySignature(body.data, body.signature, keys[0].publicKey)).toBe(true);
+    expect(verifySignature({ ...body.data, finalUrl: 'https://evil.example/' }, body.signature, keys[0].publicKey)).toBe(false);
+
+    const failing = await makeApp({ signer: privateKey, engine: fakeEngine({ statusCode: 429, html: '<html>slow down</html>' }) });
+    const bad = await failing.app.inject({ method: 'POST', url: '/v2/scrape', headers: failing.auth, payload: { url: 'https://example.com/start' } });
+    const badId = bad.json().trust.receiptId as string;
+    const badReceipt = (await failing.app.inject({ method: 'GET', url: `/v2/receipts/${badId}`, headers: failing.auth })).json();
+    expect(badReceipt.signature).not.toBeNull();
+  });
+
+  it('returns a null signature when no signing key is configured, and an empty key list', async () => {
+    const { app, auth } = await makeApp();
+    const post = await app.inject({ method: 'POST', url: '/v2/scrape', headers: auth, payload: { url: 'https://example.com/start' } });
+    const id = post.json().data.trust.receiptId as string;
+    expect((await app.inject({ method: 'GET', url: `/v2/receipts/${id}`, headers: auth })).json().signature).toBeNull();
+    expect((await app.inject({ method: 'GET', url: '/.well-known/icecrawl-keys.json' })).json()).toEqual({ keys: [] });
+  });
+});

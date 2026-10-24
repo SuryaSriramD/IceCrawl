@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { featureSet, type Engine, type EngineResult } from '@icecrawl/engines';
-import { sha256Hex } from '@icecrawl/trust';
+import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import { buildApp } from '../src/app';
 import { MemorySnapshotStore, MemoryStore } from '../src/store/memory';
 
@@ -26,7 +26,9 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
   };
 }
 
-export async function makeApp(opts: { engine?: Engine; useAuth?: boolean; strict?: boolean } = {}) {
+export async function makeApp(
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; signer?: PrivateSigningKey } = {},
+) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
   const keyId = randomUUID();
@@ -37,6 +39,7 @@ export async function makeApp(opts: { engine?: Engine; useAuth?: boolean; strict
     engines: [opts.engine ?? fakeEngine({})],
     scraper: { allowPrivateNetworks: false, maxResponseBytes: 1_000_000, strict: opts.strict ?? false },
     useAuth: opts.useAuth ?? true,
+    signer: opts.signer,
   });
   return { app, store, snapshots, keyId, auth: { authorization: 'Bearer ic-test' } };
 }
