@@ -12,7 +12,7 @@ describe.skipIf(!url)('postgres', () => {
   });
   describeStoreContract('postgres', async () => {
     await migrate(sql);
-    await sql`truncate receipts, snapshots, scrapes, api_keys cascade`;
+    await sql`truncate receipts, snapshots, scrapes, api_keys, signing_keys cascade`;
     return new PgStore(sql);
   });
 });

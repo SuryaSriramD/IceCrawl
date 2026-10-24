@@ -6,6 +6,7 @@ export interface AppConfig {
   allowPrivateNetworks: boolean;
   strict: boolean;
   maxResponseBytes: number;
+  signingKeyFile: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -17,5 +18,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     allowPrivateNetworks: env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true',
     strict: env.ICECRAWL_STRICT === 'true',
     maxResponseBytes: Number(env.ICECRAWL_MAX_RESPONSE_BYTES ?? 10 * 1024 * 1024),
+    signingKeyFile: env.ICECRAWL_SIGNING_KEY_FILE ?? './data/signing-key.pem',
   };
 }

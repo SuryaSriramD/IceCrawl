@@ -1,4 +1,4 @@
-import type { Receipt, Verdict } from '@icecrawl/core';
+import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
 
 export interface ApiKeyRow {
   id: string;
@@ -27,13 +27,24 @@ export interface SnapshotMeta {
   bytes: number;
 }
 
+export const snapshotKey = (sha256: string): string => `${sha256.slice(0, 2)}/${sha256}`;
+
 export interface Store {
   findApiKeyByHash(hash: string): Promise<ApiKeyRow | null>;
   createApiKey(k: { id: string; hash: string; name: string }): Promise<void>;
   revokeApiKey(id: string): Promise<void>;
-  saveScrape(rec: ScrapeRecord, receipt: Receipt, snapshot: SnapshotMeta | null): Promise<void>;
+  saveScrape(
+    rec: ScrapeRecord,
+    receipt: Receipt,
+    snapshot: SnapshotMeta | null,
+    signature?: ReceiptSignature | null,
+  ): Promise<void>;
   getScrape(id: string): Promise<ScrapeRecord | null>;
   getReceipt(id: string): Promise<Receipt | null>;
+  getSignedReceipt(id: string): Promise<SignedReceipt | null>;
+  registerPublicKey(entry: PublicKeyEntry): Promise<void>;
+  listPublicKeys(): Promise<PublicKeyEntry[]>;
+  retireKey(keyId: string): Promise<void>;
   close(): Promise<void>;
 }
 

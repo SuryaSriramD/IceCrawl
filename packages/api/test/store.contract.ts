@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Receipt } from '@icecrawl/core';
+import type { Receipt, ReceiptSignature } from '@icecrawl/core';
 import type { ScrapeRecord, Store } from '../src/store/types';
 
 export function sampleReceipt(id: string): Receipt {
@@ -74,6 +74,34 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
     it('returns null for unknown ids', async () => {
       expect(await store.getScrape(randomUUID())).toBeNull();
       expect(await store.getReceipt(randomUUID())).toBeNull();
+      expect(await store.getSignedReceipt(randomUUID())).toBeNull();
+    });
+
+    it('stores and returns a receipt signature', async () => {
+      const id = randomUUID();
+      const signature: ReceiptSignature = { alg: 'Ed25519', keyId: 'k_0123456789abcdef', sig: 'c2lnbmF0dXJl' };
+      await store.saveScrape(sampleScrape(id, null), sampleReceipt(id), null, signature);
+      expect(await store.getSignedReceipt(id)).toEqual({ receipt: sampleReceipt(id), signature });
+    });
+
+    it('returns a null signature for unsigned receipts', async () => {
+      const id = randomUUID();
+      await store.saveScrape(sampleScrape(id, null), sampleReceipt(id), null);
+      expect(await store.getSignedReceipt(id)).toEqual({ receipt: sampleReceipt(id), signature: null });
+    });
+
+    it('registers, lists and retires public keys', async () => {
+      const a = { keyId: `k_${randomUUID().slice(0, 16)}`, alg: 'Ed25519' as const, publicKey: 'QQ==', createdAt: '2026-10-24T10:00:00.000Z', retiredAt: null };
+      const b = { ...a, keyId: `k_${randomUUID().slice(0, 16)}`, createdAt: '2026-10-25T10:00:00.000Z' };
+      await store.registerPublicKey(a);
+      await store.registerPublicKey(b);
+      await store.registerPublicKey(a); // idempotent
+      const before = (await store.listPublicKeys()).filter((k) => k.keyId === a.keyId || k.keyId === b.keyId);
+      expect(before.map((k) => k.keyId)).toEqual([a.keyId, b.keyId]);
+      expect(before.every((k) => k.retiredAt === null)).toBe(true);
+      await store.retireKey(a.keyId);
+      const after = (await store.listPublicKeys()).find((k) => k.keyId === a.keyId);
+      expect(after?.retiredAt).not.toBeNull();
     });
   });
 }
