@@ -1,4 +1,4 @@
-# icecrawl: design
+# IceCrawl: design
 
 Status: approved in conversation 2026-10-24. Name: IceCrawl.
 
