@@ -76,6 +76,7 @@ export const scrapeRequestSchema = z.object({
 });
 
 export type ScrapeRequest = z.infer<typeof scrapeRequestSchema>;
+export type ScrapeOptions = Omit<z.input<typeof scrapeRequestSchema>, 'url'>;
 
 export interface NormalizedScrape {
   request: ScrapeRequest;

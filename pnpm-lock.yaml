@@ -137,6 +137,12 @@ importers:
         specifier: ^5.0.5
         version: 5.0.6
 
+  packages/sdk:
+    dependencies:
+      '@icecrawl/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/trust:
     dependencies:
       '@icecrawl/core':

@@ -148,3 +148,6 @@ export function normalizeMapRequest(input: unknown): { request: MapRequest; warn
   const extras = unknownKeys(input, MAP_KEYS);
   return { request: parsed.data, warnings: extras.length > 0 ? [`Ignored unsupported options: ${extras.join(', ')}.`] : [] };
 }
+export type CrawlOptions = Omit<z.input<typeof crawlRequestSchema>, 'url'>;
+export type BatchOptions = Omit<z.input<typeof batchRequestSchema>, 'urls'>;
+export type MapOptions = Omit<z.input<typeof mapRequestSchema>, 'url'>;
