@@ -1,4 +1,5 @@
-import { sha256Hex } from '@icecrawl/trust';
+import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
+import type { ScraperConfig } from '@icecrawl/scraper';
 import { buildApp } from '../src/app';
 import { randomUUID } from 'node:crypto';
 import { featureSet, type Engine } from '@icecrawl/engines';
@@ -125,7 +126,7 @@ export async function drain(deps: JobDeps, queues: MemoryQueues, o: { maxAttempt
 }
 
 export async function makeJobsApp(
-  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean } = {},
+  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig> } = {},
 ) {
   const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false });
   const keyId = randomUUID();
@@ -134,7 +135,8 @@ export async function makeJobsApp(
     store,
     snapshots: deps.snapshots,
     engines: deps.engines,
-    scraper: deps.scraper,
+    scraper: { ...deps.scraper, ...over.scraper },
+    signer: over.signer,
     useAuth: over.useAuth ?? true,
     map: { fetcher: deps.fetcher },
     jobs: {

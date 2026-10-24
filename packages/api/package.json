@@ -25,6 +25,9 @@
   },
   "devDependencies": {
     "@icecrawl/cli": "workspace:*",
+    "@icecrawl/mcp": "workspace:*",
+    "@icecrawl/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "~1.32.2",
     "playwright-core": "^1.64.1"
   }
 }
