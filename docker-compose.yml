@@ -32,7 +32,24 @@ services:
       ICECRAWL_SNAPSHOT_DIR: /data/snapshots
       ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
       ICECRAWL_BROWSER_NO_SANDBOX: "true"
+      ICECRAWL_RUN_WORKER: "false"
+      ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
     ports: ["3002:3002"]
+    volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
+    shm_size: "1gb"
+  worker:
+    build: .
+    command: ["pnpm", "--filter", "@icecrawl/api", "worker"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
+      REDIS_URL: redis://redis:6379
+      ICECRAWL_SNAPSHOT_DIR: /data/snapshots
+      ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
+      ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
+      ICECRAWL_BROWSER_NO_SANDBOX: "true"
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
 volumes:

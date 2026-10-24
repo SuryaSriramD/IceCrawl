@@ -36,6 +36,8 @@ Monorepo, one clear job per package:
 | `worker` | Runs the scrape pipeline for jobs | engines, trust, core |
 | `engines` | `fetch`, `playwright`, `pdf`, `document`, `search` (SearXNG); each declares `{quality, features, maxTime}`; picker + waterfall | core |
 | `scraper` | Shared scrape pipeline: flags, picker, waterfall, HTML conversion, verdict, receipt. Called by `api` now and `worker` from phase 3. | core, engines, trust |
+| `crawler` | Pure crawl logic: URL normalisation, link-scope rules, robots.txt (RFC 9309), sitemap discovery. | none |
+| `queue` | `JobQueues` interface, BullMQ implementation and in-memory twin; frontier de-dup and concurrency/delay slots in Redis. | none |
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
 | `sdk` | Typed client | none |
 | `mcp` | MCP server (stdio + streamable HTTP) | sdk |
@@ -111,6 +113,7 @@ Typed codes: `BLOCKED, LOGIN_WALL, CAPTCHA, TIMEOUT, DNS, SSL, UNSUPPORTED_OPTIO
 Defaults: SSRF guard (block private, loopback, link-local after DNS resolution and on every redirect), response size caps, robots.txt respected for crawl, per-scrape wall-clock limit, API keys stored hashed.
 
 - Browser traffic is forced through an in-process egress proxy that enforces the SSRF guard at connect time (phase 2). Receipts are signed with Ed25519 and carry the content type and conversion options needed to replay the conversion (phase 2).
+- Crawls respect robots.txt (RFC 9309: 4xx allow all, 5xx or unreachable disallow all); `ignoreRobotsTxt` works only when the operator enables it. Webhook deliveries are SSRF-checked and HMAC-signed (phase 3). Job workers live in the `api` package for now.
 
 ## 9. Testing
 

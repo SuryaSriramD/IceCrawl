@@ -2,7 +2,7 @@
 
 Open-source, Firecrawl-v2-compatible web scraping API where every scrape comes with a verdict and a provenance receipt.
 
-> Status: phase 2 (browser + signing). `POST /v2/scrape` renders JavaScript pages, runs actions, takes screenshots and returns signed receipts. Crawl, map, batch, search, extract, MCP and the rest follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
+> Status: phase 3 (crawl layer). Scrape, crawl, batch scrape and map work, with signed webhooks. Search, extract, MCP and the rest follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
 
 ## Quick start
 
@@ -41,6 +41,25 @@ Rotate the signing key with `pnpm --filter @icecrawl/api signing:rotate` (the ol
 ## Browser notes
 
 The browser engine routes all traffic through an internal proxy that blocks private and loopback addresses at connect time, including redirects and subresources. For defence in depth, run the server in a container with restricted egress. Set `ICECRAWL_BROWSER=false` to use plain HTTP fetch only, or `ICECRAWL_PREFER_BROWSER=false` to try fetch first and use the browser only when the fetched page looks empty or blocked.
+
+## Crawling
+
+```bash
+# start a crawl (returns an id and a status URL)
+curl -s http://localhost:3002/v2/crawl -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"url":"https://docs.example.com","limit":50,"includePaths":["^/guide"],"webhook":{"url":"https://you.example.com/hook"}}'
+
+# poll it (pages arrive as they finish; follow "next" for more than ~10 MB)
+curl -s http://localhost:3002/v2/crawl/$ID -H "Authorization: Bearer $KEY"
+curl -s http://localhost:3002/v2/crawl/$ID/errors -H "Authorization: Bearer $KEY"   # failed pages and robots.txt blocks
+curl -s -X DELETE http://localhost:3002/v2/crawl/$ID -H "Authorization: Bearer $KEY"  # cancel
+```
+
+Crawls respect robots.txt (including `Crawl-delay`), seed from the sitemap, never fetch a URL twice, stay inside the start path unless `crawlEntireDomain` is set, and follow external links one hop only with `allowExternalLinks`. Every crawled page is a normal scrape with a verdict and a signed receipt (`data[].trust.receiptId`). `/v2/batch/scrape` takes a list of URLs, `/v2/map` lists a site's URLs.
+
+Webhooks are signed: `X-IceCrawl-Signature: sha256=<hmac of the raw body>` (also sent as `X-Firecrawl-Signature`). The secret is generated into `ICECRAWL_WEBHOOK_SECRET_FILE` on first start.
+
+Workers run inside the API process by default. To scale out, run the API with `ICECRAWL_RUN_WORKER=false` and start `pnpm --filter @icecrawl/api worker` (or `docker compose up worker`) as many times as needed.
 
 ## Tests
 
