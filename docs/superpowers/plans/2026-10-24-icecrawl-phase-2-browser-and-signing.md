@@ -2840,8 +2840,7 @@ describe('icecrawl verify (offline)', () => {
     const { base, lines } = io();
     const code = await runVerify(['--receipt', join(dir, 'receipt.json'), '--snapshot', join(dir, 'snapshot.html')], base);
     expect(code).toBe(1);
-    expect(lines.join('
-')).toMatch(/signature\s+FAIL.*unknown signing key/);
+    expect(lines.join('\n')).toMatch(/signature\s+FAIL.*unknown signing key/);
   });
 });
 ```
