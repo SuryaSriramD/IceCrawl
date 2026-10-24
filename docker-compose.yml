@@ -20,5 +20,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  api:
+    build: .
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      PORT: "3002"
+      DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
+      REDIS_URL: redis://redis:6379
+      ICECRAWL_SNAPSHOT_DIR: /data/snapshots
+    ports: ["3002:3002"]
+    volumes: ["snapshots:/data/snapshots"]
 volumes:
   pgdata: {}
+  snapshots: {}

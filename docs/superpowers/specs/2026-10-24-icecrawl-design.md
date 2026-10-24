@@ -137,7 +137,7 @@ Each phase gets its own implementation plan.
 - Data indexes: Firecrawl's hosted Alexandria/developer/gov/research indexes are curated datasets we cannot replicate. Phase 9 delivers the mechanism (index + provider plugins) and endpoint compatibility; the data comes from sources the operator configures.
 - Stealth: anti-bot evasion is dual-use. IceCrawl ships hardening and proxy routing as operator-configured features, keeps robots and rate limits on by default, and reports `blocked` honestly when evasion fails.
 
-- Whether the official SDKs accept the extra `trust` field.
+- Official Node SDK (version 4.51.0, `@mendable/firecrawl-js`) accepts the extra `data.trust` field: verified 2026-10-24.
 - HTML-to-Markdown library choice.
 - Verdict precision/recall targets (set when the fixture corpus exists).
 - Exact v2 response shapes per endpoint: confirm against the OpenAPI during phase 1.
