@@ -1,0 +1,13 @@
+{
+  "name": "@icecrawl/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/verify-cmd.ts" },
+  "scripts": { "icecrawl": "tsx src/bin.ts" },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/scraper": "workspace:*",
+    "@icecrawl/trust": "workspace:*"
+  }
+}

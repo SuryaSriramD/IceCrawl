@@ -9,9 +9,9 @@ import {
 } from '@icecrawl/core';
 import { pickEngines, type ActionOutputs, type Engine, type EngineResult } from '@icecrawl/engines';
 import { buildReceipt, classify, sha256Hex } from '@icecrawl/trust';
-import { contentKind, decodeBody } from './decode';
-import { CONVERTER, convertHtml } from './convert';
+import { CONVERTER } from './convert';
 import { buildFeatureFlags } from './flags';
+import { renderBody } from './render';
 
 export interface ScraperConfig {
   allowPrivateNetworks: boolean;
@@ -74,31 +74,17 @@ interface Analyzed {
 }
 
 function analyze(engine: string, result: EngineResult, n: NormalizedScrape): Analyzed {
-  const kind = contentKind(result.contentType, result.body);
-  const text = kind === 'unsupported' ? '' : decodeBody(result.body, result.contentType);
-  let markdown = '';
-  let cleanHtml = '';
-  let links: string[] = [];
-  let title: string | null = null;
-  let description: string | null = null;
-  let language: string | null = null;
-
-  if (kind === 'html') {
-    const c = convertHtml(text, {
-      url: result.finalUrl,
+  const { kind, text, markdown, cleanHtml, links, title, description, language } = renderBody(
+    result.body,
+    result.contentType,
+    result.finalUrl,
+    {
       onlyMainContent: n.request.onlyMainContent,
       includeTags: n.request.includeTags,
       excludeTags: n.request.excludeTags,
       removeBase64Images: n.request.removeBase64Images,
-    });
-    ({ markdown, cleanHtml, links, title, description, language } = c);
-  } else if (kind === 'json') {
-    markdown = `\`\`\`json\n${text.trim()}\n\`\`\``;
-    cleanHtml = text;
-  } else if (kind === 'text') {
-    markdown = text.trim();
-    cleanHtml = text;
-  }
+    },
+  );
 
   const c = classify({
     statusCode: result.statusCode,

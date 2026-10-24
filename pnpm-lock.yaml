@@ -45,6 +45,18 @@ importers:
         specifier: ^3.4.5
         version: 3.4.9
 
+  packages/cli:
+    dependencies:
+      '@icecrawl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@icecrawl/scraper':
+        specifier: workspace:*
+        version: link:../scraper
+      '@icecrawl/trust':
+        specifier: workspace:*
+        version: link:../trust
+
   packages/core:
     dependencies:
       zod:
