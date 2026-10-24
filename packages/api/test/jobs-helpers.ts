@@ -136,6 +136,7 @@ export async function makeJobsApp(
     engines: deps.engines,
     scraper: deps.scraper,
     useAuth: over.useAuth ?? true,
+    map: { fetcher: deps.fetcher },
     jobs: {
       queues,
       ttlHours: 24,
