@@ -24,12 +24,43 @@ export const VERDICT_ERROR_CODE: Record<Exclude<Verdict, 'ok'>, ErrorCode> = {
   error: 'TARGET_ERROR',
 };
 
+export type InjectionSeverity = 'low' | 'medium' | 'high';
+export type InjectionKind =
+  | 'instruction'
+  | 'role_override'
+  | 'exfiltration'
+  | 'tool_abuse'
+  | 'hidden_text'
+  | 'invisible_chars'
+  | 'encoded_payload';
+
+export interface InjectionFinding {
+  kind: InjectionKind;
+  severity: InjectionSeverity;
+  rule: string;
+  excerpt: string;
+  hidden: boolean;
+  location: 'markdown' | 'html';
+}
+
+export interface ScanSummary {
+  scanner: { name: string; version: string };
+  flagged: boolean;
+  highest: InjectionSeverity | null;
+  count: number;
+}
+
+export interface InjectionReport extends ScanSummary {
+  findings: InjectionFinding[];
+}
+
 export interface TrustBlock {
   verdict: Verdict;
   confidence: number;
   reasons: string[];
   receiptId: string;
   engine: string;
+  injection?: InjectionReport;
 }
 
 export interface EngineAttempt {
@@ -63,6 +94,7 @@ export interface Receipt {
   converter: { name: string; version: string };
   contentType?: string | null;
   screenshotSha256?: string | null;
+  scan?: ScanSummary | null;
   options: ReceiptOptions;
 }
 

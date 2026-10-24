@@ -4,5 +4,5 @@
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@icecrawl/core": "workspace:*" }
+  "dependencies": { "@icecrawl/core": "workspace:*", "linkedom": "^0.18.5" }
 }

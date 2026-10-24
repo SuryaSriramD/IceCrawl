@@ -142,6 +142,9 @@ importers:
       '@icecrawl/core':
         specifier: workspace:*
         version: link:../core
+      linkedom:
+        specifier: ^0.18.5
+        version: 0.18.14
 
 packages:
 
