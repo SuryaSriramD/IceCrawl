@@ -29,9 +29,15 @@ importers:
       '@icecrawl/core':
         specifier: workspace:*
         version: link:../core
+      '@icecrawl/crawler':
+        specifier: workspace:*
+        version: link:../crawler
       '@icecrawl/engines':
         specifier: workspace:*
         version: link:../engines
+      '@icecrawl/queue':
+        specifier: workspace:*
+        version: link:../queue
       '@icecrawl/scraper':
         specifier: workspace:*
         version: link:../scraper
@@ -44,6 +50,9 @@ importers:
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
+      undici:
+        specifier: ^6.21.0
+        version: 6.29.1
     devDependencies:
       '@icecrawl/cli':
         specifier: workspace:*

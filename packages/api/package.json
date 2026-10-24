@@ -13,11 +13,14 @@
   },
   "dependencies": {
     "@icecrawl/core": "workspace:*",
+    "@icecrawl/crawler": "workspace:*",
     "@icecrawl/engines": "workspace:*",
+    "@icecrawl/queue": "workspace:*",
     "@icecrawl/scraper": "workspace:*",
     "@icecrawl/trust": "workspace:*",
     "fastify": "^5.1.0",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "undici": "^6.21.0"
   },
   "devDependencies": {
     "@icecrawl/cli": "workspace:*",

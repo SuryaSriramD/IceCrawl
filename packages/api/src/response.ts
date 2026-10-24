@@ -51,6 +51,7 @@ export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { sta
     url: run.finalUrl,
     statusCode: run.statusCode,
     contentType: run.contentType,
+    scrapeId: run.id,
   };
   if (warnings.length > 0) data.warning = warnings.join(' ');
   data.trust = trust;

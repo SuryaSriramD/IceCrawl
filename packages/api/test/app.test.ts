@@ -49,6 +49,7 @@ describe('POST /v2/scrape', () => {
       url: 'https://example.com/final',
       statusCode: 200,
     });
+    expect(body.data.metadata.scrapeId).toBe(body.data.trust.receiptId);
     expect(body.data.trust).toMatchObject({ verdict: 'ok', engine: 'fake' });
     expect(body.data.trust.receiptId).toMatch(/^[0-9a-f-]{36}$/);
   });
