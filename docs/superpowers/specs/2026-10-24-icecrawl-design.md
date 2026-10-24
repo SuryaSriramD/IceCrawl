@@ -19,7 +19,8 @@ Clean-room: Firecrawl's backend is AGPL-3.0. We implement the public API contrac
 | Language | TypeScript on Node |
 | Infra | Postgres + Redis (BullMQ), docker-compose |
 | v1 API scope | scrape, map, crawl, batch scrape, search, extract (+ stub team routes) |
-| Not in v1 | stealth proxies, anti-bot solving, interact, agent, monitor, parse, Alexandria/indexes, billing, dashboard. These return `501 not_implemented` naming the roadmap phase. |
+| Scope | Everything in the Firecrawl v2 API surface is in scope, delivered in phases (section 10): scrape, map, crawl, batch, search, extract, parse, interact, agent, monitor, stealth/proxy support, data indexes and providers, and a dashboard. Routes of a not-yet-built phase return `501 not_implemented` naming the phase. |
+| Out of scope | Billing, plans and credit charging. Usage is metered and shown, never charged. `/team/credit-usage` reports usage with unlimited balance. |
 | License | Apache-2.0 |
 | Trust | all four: verdicts, receipts, signatures + replay, injection scan |
 
@@ -37,6 +38,11 @@ Monorepo, one clear job per package:
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
 | `sdk` | Typed client | none |
 | `mcp` | MCP server (stdio + streamable HTTP) | sdk |
+| `browser` | Pooled browser sessions for actions, interact and screenshots; proxy routing; session lifecycle | core |
+| `agent` | Multi-step LLM web agent built on scrape/search/interact, with a recorded trace | engines, browser, trust |
+| `monitor` | Scheduled re-scrapes, change detection, notifications | worker, trust |
+| `index` | Search index over stored scrapes (Postgres full-text + pgvector) and a provider plugin interface for external data sources | core |
+| `dashboard` | Web UI: keys, jobs, playground, receipts, monitors, usage | sdk |
 
 Scrape flow: request → feature flags → picker → waterfall → trust pipeline (on every engine result) → v2 response plus `trust` block.
 
@@ -51,10 +57,10 @@ Scrape flow: request → feature flags → picker → waterfall → trust pipeli
 
 - Source of truth: Firecrawl's published v2 OpenAPI (copy kept at `D:\1.projects\REA\evidence\firecrawl\v2-openapi.json`); `core` schemas are generated from it.
 - Same paths, bearer auth, job-ID polling, `success`/`data` envelope, error shapes. Auth uses our own API keys; no billing.
-- Build order: scrape → map → crawl (+ errors, webhooks) → batch scrape → search (SearXNG; optional result scraping) → extract (LLM, bring your own key) → team stubs.
+- Build order: scrape → map → crawl (+ errors, webhooks) → batch scrape → search (SearXNG; optional result scraping) → extract (LLM, bring your own key) → team stubs → parse → interact → agent → monitor → index/providers. Billing routes are not implemented; usage endpoints report metering only.
 - Formats in v1: markdown, html, rawHtml, links, images, screenshot, json (+schema), summary. Options: onlyMainContent, include/excludeTags, waitFor, timeout, headers, mobile, maxAge cache, actions (Playwright only). Unsupported options are accepted and reported in `warning`.
 - **Intentional differences:** (a) `success: false` when the verdict is not `ok`, where Firecrawl may return a block page as success; (b) added `trust` object beside `metadata`. If the official SDKs reject the extra field, `trust` moves behind `?trust=1` or a header.
-- Engine picker: flag priorities and half-total threshold; positive-quality filter; sort by support score then quality; overlapping waterfall bounded by per-engine max time; outer retry that re-runs the picker when flags change (e.g. a PDF discovered). Engines in v1: `fetch`, `playwright`, `pdf`, `document`.
+- Engine picker: flag priorities and half-total threshold; positive-quality filter; sort by support score then quality; overlapping waterfall bounded by per-engine max time; outer retry that re-runs the picker when flags change (e.g. a PDF discovered). Engines: `fetch`, `playwright`, `pdf`, `document` first; later `stealth` variants (browser hardening plus operator-supplied proxy pools, selected by `proxy: stealth|enhanced|auto` exactly as the picker already models), an `index` engine that serves cached or indexed content first, and optional pluggable provider engines.
 
 ## 5. MCP
 
@@ -119,9 +125,16 @@ Each phase gets its own implementation plan.
 3. **Crawl layer:** `/map`, `/crawl`, `/batch/scrape`, webhooks, robots, frontier.
 4. **MCP + SDK:** `@icecrawl/mcp`, `sdk`, injection scan, Claude/Codex docs.
 5. **Search + extract:** SearXNG adapter; LLM extract with schema validation and a check that extracted values appear in the source.
-6. **Hardening:** SDK conformance in CI, fixture benchmarks, docs, public release.
+6. **Hardening and first release:** SDK conformance in CI, fixture benchmarks, docs, public release of phases 1-5.
+7. **Parse + stealth:** `/parse` (file upload to markdown), `stealth`/`enhanced` proxy modes with operator-supplied proxy pools, browser fingerprint hardening, `proxy: auto` escalation on blocked verdicts. Captcha solving is an optional pluggable third-party solver adapter, off by default. Robots.txt and per-domain rate limits remain on by default.
+8. **Interact + agent:** persistent browser sessions (`/scrape/{id}/interact`, `/interact`), code and prompt execution in a session, session TTL and cleanup; `/agent` with trace and snapshots, human-approval hooks for risky steps.
+9. **Monitor + index:** `/monitor` CRUD, schedules, runs and checks, change-tracking format, webhooks and notifications; search index over stored scrapes, provider plugin interface, developer/government/research index endpoints backed by operator-chosen sources.
+10. **Dashboard:** web UI for keys, jobs, playground, receipts and verification, monitors, usage.
 
 ## 11. Open items (do not block the plan)
+
+- Data indexes: Firecrawl's hosted Alexandria/developer/gov/research indexes are curated datasets we cannot replicate. Phase 9 delivers the mechanism (index + provider plugins) and endpoint compatibility; the data comes from sources the operator configures.
+- Stealth: anti-bot evasion is dual-use. IceCrawl ships hardening and proxy routing as operator-configured features, keeps robots and rate limits on by default, and reports `blocked` honestly when evasion fails.
 
 - Whether the official SDKs accept the extra `trust` field.
 - HTML-to-Markdown library choice.
