@@ -1,10 +1,26 @@
 import postgres from 'postgres';
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
-import type { ApiKeyRow, ScrapeRecord, SnapshotMeta, Store } from './types';
+import type { ApiKeyRow, JobError, JobRecord, JobStatus, NewJob, ScrapeRecord, SnapshotMeta, Store } from './types';
 
 export function createSql(url: string): postgres.Sql {
   return postgres(url, { onnotice: () => {}, max: 10 });
 }
+
+const jobFromRow = (r: postgres.Row): JobRecord => ({
+  id: r.id,
+  type: r.type,
+  apiKeyId: r.api_key_id,
+  status: r.status,
+  request: r.request,
+  webhook: r.webhook,
+  limit: r.page_limit,
+  total: r.total,
+  completed: r.completed,
+  failed: r.failed,
+  createdAt: new Date(r.created_at).toISOString(),
+  completedAt: r.completed_at ? new Date(r.completed_at).toISOString() : null,
+  expiresAt: new Date(r.expires_at).toISOString(),
+});
 
 export class PgStore implements Store {
   constructor(private readonly sql: postgres.Sql) {}
@@ -30,8 +46,8 @@ export class PgStore implements Store {
   ): Promise<void> {
     await this.sql.begin(async (tx) => {
       await tx`
-        insert into scrapes (id, api_key_id, url, final_url, verdict, confidence, engine, status_code, markdown, metadata, response, created_at)
-        values (${rec.id}, ${rec.apiKeyId}, ${rec.url}, ${rec.finalUrl}, ${rec.verdict}, ${rec.confidence}, ${rec.engine},
+        insert into scrapes (id, api_key_id, job_id, url, final_url, verdict, confidence, engine, status_code, markdown, metadata, response, created_at)
+        values (${rec.id}, ${rec.apiKeyId}, ${rec.jobId ?? null}, ${rec.url}, ${rec.finalUrl}, ${rec.verdict}, ${rec.confidence}, ${rec.engine},
                 ${rec.statusCode}, ${rec.markdown}, ${tx.json(rec.metadata as never)}, ${tx.json(rec.response as never)}, ${rec.createdAt})`;
       if (snapshot) {
         await tx`insert into snapshots (scrape_id, html_sha256, storage_key, bytes)
@@ -94,6 +110,97 @@ export class PgStore implements Store {
 
   async retireKey(keyId: string): Promise<void> {
     await this.sql`update signing_keys set retired_at = now() where key_id = ${keyId} and retired_at is null`;
+  }
+
+  async createJob(j: NewJob): Promise<void> {
+    await this.sql`
+      insert into jobs (id, type, api_key_id, request, webhook, page_limit, expires_at)
+      values (${j.id}, ${j.type}, ${j.apiKeyId}, ${this.sql.json(j.request as never)}, ${j.webhook ? this.sql.json(j.webhook as never) : null}, ${j.limit}, ${j.expiresAt.toISOString()})`;
+  }
+
+  async getJob(id: string): Promise<JobRecord | null> {
+    const [r] = await this.sql`select * from jobs where id = ${id}`;
+    return r ? jobFromRow(r) : null;
+  }
+
+  async reserveUrls(jobId: string, requested: number): Promise<number> {
+    const [r] = await this.sql`
+      with old as (select id, total, page_limit from jobs where id = ${jobId} and status = 'scraping' for update)
+      update jobs set total = jobs.total + least(${requested}::int, greatest(old.page_limit - old.total, 0))
+      from old where jobs.id = old.id
+      returning least(${requested}::int, greatest(old.page_limit - old.total, 0)) as granted`;
+    return r ? Number(r.granted) : 0;
+  }
+
+  async recordPageResult(jobId: string, outcome: 'completed' | 'failed') {
+    const [r] = await this.sql`
+      update jobs set
+        completed = completed + (case when ${outcome} = 'completed' then 1 else 0 end),
+        failed = failed + (case when ${outcome} = 'failed' then 1 else 0 end)
+      where id = ${jobId}
+      returning total, completed, failed, status`;
+    if (!r) throw new Error(`unknown job ${jobId}`);
+    return { total: r.total, completed: r.completed, failed: r.failed, status: r.status as JobStatus };
+  }
+
+  async finalizeJob(jobId: string, status: 'completed' | 'failed'): Promise<JobRecord | null> {
+    const [r] = await this.sql`
+      update jobs set status = ${status}, completed_at = now() where id = ${jobId} and status = 'scraping' returning *`;
+    return r ? jobFromRow(r) : null;
+  }
+
+  async cancelJob(jobId: string): Promise<boolean> {
+    const rows = await this.sql`
+      update jobs set status = 'cancelled', completed_at = now() where id = ${jobId} and status = 'scraping' returning id`;
+    return rows.length > 0;
+  }
+
+  async addJobError(jobId: string, e: { url: string; error: string; code: string | null; kind: 'error' | 'robots' }): Promise<void> {
+    await this.sql`insert into job_errors (job_id, url, error, code, kind) values (${jobId}, ${e.url}, ${e.error}, ${e.code}, ${e.kind})`;
+  }
+
+  async listJobErrors(jobId: string): Promise<JobError[]> {
+    const rows = await this.sql`select id, url, error, code, kind, created_at from job_errors where job_id = ${jobId} order by created_at, id`;
+    return rows.map((r) => ({
+      id: r.id,
+      url: r.url,
+      error: r.error,
+      code: r.code,
+      kind: r.kind,
+      timestamp: new Date(r.created_at).toISOString(),
+    }));
+  }
+
+  async listJobPages(jobId: string, skip: number, maxBytes: number) {
+    const batch = 500;
+    const rows = await this.sql`
+      select response->'data' as data, length(response::text) as size
+      from scrapes where job_id = ${jobId} and (response->>'success') = 'true'
+      order by seq offset ${skip} limit ${batch + 1}`;
+    const items: Record<string, unknown>[] = [];
+    let bytes = 0;
+    let more = rows.length > batch;
+    for (const row of rows.slice(0, batch)) {
+      const size = Number(row.size);
+      if (items.length > 0 && bytes + size > maxBytes) {
+        more = true;
+        break;
+      }
+      items.push(row.data as Record<string, unknown>);
+      bytes += size;
+    }
+    return { items, nextSkip: more ? skip + items.length : null };
+  }
+
+  async listActiveJobs(apiKeyId: string | null): Promise<JobRecord[]> {
+    const rows = await this.sql`
+      select * from jobs where status = 'scraping' and api_key_id is not distinct from ${apiKeyId} order by created_at`;
+    return rows.map(jobFromRow);
+  }
+
+  async deleteExpiredJobs(now: Date): Promise<number> {
+    const rows = await this.sql`delete from jobs where expires_at < ${now.toISOString()} returning id`;
+    return rows.length;
   }
 
   async close(): Promise<void> {
