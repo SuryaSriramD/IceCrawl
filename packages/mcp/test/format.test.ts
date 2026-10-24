@@ -160,6 +160,7 @@ describe('formatApiError', () => {
     expect(t).toContain('prompt injection');
     expect(t).toContain('ignore-previous');
     expect(t).toContain('rcpt-7');
+    for (const f of flagged.findings) expect(t).not.toContain(f.excerpt);
   });
 
   it('reports plain API errors and network errors distinctly', () => {

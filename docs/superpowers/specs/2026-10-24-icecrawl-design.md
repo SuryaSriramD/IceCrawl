@@ -39,7 +39,7 @@ Monorepo, one clear job per package:
 | `crawler` | Pure crawl logic: URL normalisation, link-scope rules, robots.txt (RFC 9309), sitemap discovery. | none |
 | `queue` | `JobQueues` interface, BullMQ implementation and in-memory twin; frontier de-dup and concurrency/delay slots in Redis. | none |
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
-| `sdk` | Typed client | none |
+| `sdk` | Typed client for the v2 API plus receipt verification (`@icecrawl/sdk/verify`). | core, trust, scraper |
 | `mcp` | MCP server (stdio + streamable HTTP) | sdk |
 | `browser` | Pooled browser sessions for actions, interact and screenshots; proxy routing; session lifecycle | core |
 | `agent` | Multi-step LLM web agent built on scrape/search/interact, with a recorded trace | engines, browser, trust |
@@ -54,7 +54,7 @@ Scrape flow: request → feature flags → picker → waterfall → trust pipeli
 1. **Verdict:** `ok | blocked | login_wall | captcha | empty | soft_404 | truncated | uncertain | error`, with confidence and reasons. Only `ok` is success; anything else advances the waterfall. If no engine yields `ok`, the API returns `success: false` with a typed code. `uncertain` counts as failure in strict mode.
 2. **Receipt:** receipt version, scrape ID, requested and final URL, HTTP status, fetch timestamp, engine chain with each rejection reason and verdict, SHA-256 of raw HTML, SHA-256 of output, converter name and version.
 3. **Signature:** Ed25519 over RFC 8785 canonical JSON. Raw HTML is stored by hash. `GET /v2/receipts/{id}` returns the receipt and `icecrawl verify` re-hashes the snapshot, re-runs the pinned converter and compares. Public keys at `/.well-known/icecrawl-keys.json`, so receipts survive key rotation.
-4. **Injection scan:** flags hidden text and instruction-like content. Default: content returned with `trust.injection` findings. Strict mode: quarantine.
+4. **Injection scan:** flags hidden text and instruction-like content. Default: content returned with `trust.injection` findings. Strict mode: quarantine. Implemented in phase 4 as a versioned heuristic scanner (instruction phrases, hidden elements via inline styles/hidden attribute/comments, invisible and tag characters, base64 payloads). Findings are returned in `trust.injection` and summarized in the signed receipt; `verify` replays the scan. Strict mode (`ICECRAWL_INJECTION=quarantine`) answers `INJECTION_SUSPECTED` for high-severity pages.
 
 ## 4. API compatibility
 
@@ -69,7 +69,7 @@ Scrape flow: request → feature flags → picker → waterfall → trust pipeli
 
 Package `@icecrawl/mcp`, transports stdio and streamable HTTP, implemented over `sdk`.
 
-Tools (names mirror Firecrawl's): `scrape`, `search`, `map`, `crawl_start`, `crawl_status`, `extract`, plus new `verify_receipt`.
+Tools: `scrape`, `map`, `crawl`, `check_crawl_status`, `cancel_crawl`, `batch_scrape`, `check_batch_status`, `verify_receipt` (search and extract arrive with phase 5). The prefix `icecrawl_` is configurable so Firecrawl's names can be used.
 
 Agent-safety defaults:
 - Content is wrapped in a labeled "untrusted web content" block; injection findings appear in the result text.

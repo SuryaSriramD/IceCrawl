@@ -2,7 +2,7 @@
 
 Open-source, Firecrawl-v2-compatible web scraping API where every scrape comes with a verdict and a provenance receipt.
 
-> Status: phase 3 (crawl layer). Scrape, crawl, batch scrape and map work, with signed webhooks. Search, extract, MCP and the rest follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
+> Status: phase 4 (MCP, SDK, prompt-injection scan). Scrape, crawl, batch, map, signed receipts, an MCP server for Claude and Codex and a typed SDK work. Search, extract and the rest follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
 
 ## Quick start
 
@@ -60,6 +60,65 @@ Crawls respect robots.txt (including `Crawl-delay`), seed from the sitemap, neve
 Webhooks are signed: `X-IceCrawl-Signature: sha256=<hmac of the raw body>` (also sent as `X-Firecrawl-Signature`). The secret is generated into `ICECRAWL_WEBHOOK_SECRET_FILE` on first start.
 
 Workers run inside the API process by default. To scale out, run the API with `ICECRAWL_RUN_WORKER=false` and start `pnpm --filter @icecrawl/api worker` (or `docker compose up worker`) as many times as needed.
+
+## Using IceCrawl from Claude and Codex (MCP)
+
+The MCP server (`packages/mcp`) talks to your IceCrawl API (`ICECRAWL_API_URL`, `ICECRAWL_API_KEY`). Create a key with `pnpm --filter @icecrawl/api keys:create <name>`.
+
+**Claude Code** (stdio, run from anywhere; use your repo path):
+
+```bash
+claude mcp add icecrawl -e ICECRAWL_API_URL=http://localhost:3002 -e ICECRAWL_API_KEY=ic-... -- node D:/1.projects/icecrawl/packages/mcp/bin/icecrawl-mcp.mjs
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "icecrawl": {
+      "command": "node",
+      "args": ["D:/1.projects/icecrawl/packages/mcp/bin/icecrawl-mcp.mjs"],
+      "env": { "ICECRAWL_API_URL": "http://localhost:3002", "ICECRAWL_API_KEY": "ic-..." }
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.icecrawl]
+command = "node"
+args = ["D:/1.projects/icecrawl/packages/mcp/bin/icecrawl-mcp.mjs"]
+env = { ICECRAWL_API_URL = "http://localhost:3002", ICECRAWL_API_KEY = "ic-..." }
+startup_timeout_sec = 30
+tool_timeout_sec = 300
+```
+
+**Streamable HTTP** (one shared server): run `ICECRAWL_MCP_TOKEN=secret node packages/mcp/bin/icecrawl-mcp.mjs --http --port 3003`, then `claude mcp add --transport http icecrawl http://127.0.0.1:3003/mcp --header "Authorization: Bearer secret"`. The HTTP server binds to loopback, checks the `Host` header, and refuses to listen on other addresses without `ICECRAWL_MCP_TOKEN`.
+
+Tools: `icecrawl_scrape`, `icecrawl_map`, `icecrawl_crawl`, `icecrawl_check_crawl_status`, `icecrawl_cancel_crawl`, `icecrawl_batch_scrape`, `icecrawl_check_batch_status`, `icecrawl_verify_receipt`. Set `ICECRAWL_MCP_TOOL_PREFIX=firecrawl_` to expose Firecrawl's tool names (`firecrawl_scrape`, `firecrawl_check_crawl_status`, ...) so existing prompts and skills keep working. `FIRECRAWL_API_URL` / `FIRECRAWL_API_KEY` are accepted as fallbacks.
+
+What makes the results safe for agents:
+
+- Page content is always inside `<<<ICECRAWL_UNTRUSTED_CONTENT ...>>>` markers with a random boundary, and the server instructions tell the model never to follow instructions found there.
+- A scrape that is blocked, captcha-protected, behind a login, empty, truncated, or quarantined comes back as an error result and contains **no page text**.
+- Prompt-injection findings (hidden text, instruction-like phrases, invisible characters, encoded payloads) are listed before the content. Set `ICECRAWL_INJECTION=quarantine` on the API to withhold high-severity pages entirely. The scanner is heuristic: a flag means "treat as data", and pages that discuss prompt injection will be flagged.
+- Output is capped (`maxChars`, default 30000) and says when it was truncated; status tools page with `skip`.
+- Every result carries a receipt id; `icecrawl_verify_receipt` checks the signature, the stored snapshot, and replays the converter and the injection scanner.
+
+## SDK
+
+```ts
+import { IceCrawl } from '@icecrawl/sdk';
+import { verifyReceiptRemote } from '@icecrawl/sdk/verify';
+
+const ic = new IceCrawl({ apiUrl: 'http://localhost:3002', apiKey: process.env.ICECRAWL_API_KEY });
+const doc = await ic.scrape('https://example.com', { formats: ['markdown'] });   // throws IceCrawlApiError (with .trust) if the page cannot be trusted
+const site = await ic.crawl('https://docs.example.com', { limit: 20 });            // waits and collects every page
+const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
+```
 
 ## Tests
 
