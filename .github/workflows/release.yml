@@ -1,0 +1,42 @@
+name: release
+
+# Manual only. Publishes @icecrawl/sdk, @icecrawl/mcp and @icecrawl/cli to npm.
+# It does nothing irreversible unless "publish" is set to true; the default is a dry run.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Really publish to npm (leave false for a dry run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - name: Pack, install and use the tarballs
+        run: node scripts/pack-smoke.mjs
+      - name: Publish (dry run)
+        if: ${{ !inputs.publish }}
+        run: pnpm --filter @icecrawl/sdk --filter @icecrawl/mcp --filter @icecrawl/cli publish --dry-run --no-git-checks --access public
+      - name: Publish
+        if: ${{ inputs.publish }}
+        run: pnpm --filter @icecrawl/sdk --filter @icecrawl/mcp --filter @icecrawl/cli publish --no-git-checks --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

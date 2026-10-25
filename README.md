@@ -2,7 +2,7 @@
 
 Open-source, Firecrawl-v2-compatible web scraping API where every scrape comes with a verdict and a provenance receipt.
 
-> Status: phase 5 (search and extract). Scrape, crawl, batch, map, search (SearXNG), LLM extract with a grounding check, signed receipts, prompt-injection scan, an MCP server for Claude and Codex and a typed SDK work. The rest follows the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
+> Status: 0.1.0, ready for a first release (see `CHANGELOG.md`, `docs/RELEASING.md`). Scrape, crawl, batch, map, search (SearXNG), LLM extract with a grounding check, signed receipts, a prompt-injection scan, an MCP server for Claude and Codex and a typed SDK work and are covered by the quality gates below. Parse, stealth proxies, interact, agent, monitor, indexes and a dashboard follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
 
 ## Quick start
 
@@ -65,7 +65,7 @@ Workers run inside the API process by default. To scale out, run the API with `I
 
 The MCP server (`packages/mcp`) talks to your IceCrawl API (`ICECRAWL_API_URL`, `ICECRAWL_API_KEY`). Create a key with `pnpm --filter @icecrawl/api keys:create <name>`.
 
-**Claude Code** (stdio, run from anywhere; use your repo path):
+**Claude Code** (stdio, run from anywhere; use your repo path, or `npx -y @icecrawl/mcp` instead of the `node ...` command once the package is published):
 
 ```bash
 claude mcp add icecrawl -e ICECRAWL_API_URL=http://localhost:3002 -e ICECRAWL_API_KEY=ic-... -- node D:/1.projects/icecrawl/packages/mcp/bin/icecrawl-mcp.mjs
@@ -161,12 +161,38 @@ Privacy: the text of the pages you extract from is sent to the model endpoint yo
 
 Limits: `ICECRAWL_LLM_MAX_INPUT_CHARS` (default 100000) is shared between the pages of one request, `ICECRAWL_LLM_MAX_OUTPUT_TOKENS` (default 4096) bounds the answer, `ICECRAWL_EXTRACT_MAX_PAGES` (default 20) bounds pattern and search expansion. A URL ending in `*` stands for that page and everything below it; `enableWebSearch` adds the top three search results for the prompt when search is configured.
 
+## Operations
+
+- **Health:** `GET /health` says the process is up; `GET /ready` checks that Postgres and Redis answer (503 with the failing dependency otherwise, no API key needed). The compose file uses `/ready` as the API container's healthcheck.
+- **Rate limiting:** `ICECRAWL_RATE_LIMIT_PER_MINUTE=N` (default 0, off) limits the requests that start work (POST) per API key, counted in Redis so every API process shares the limit. Over the limit the answer is `429 RATE_LIMITED` with `Retry-After` and `X-RateLimit-*` headers. Reading and polling are never limited.
+- **Lost jobs:** a job that is still running `ICECRAWL_JOB_MAX_RUNTIME_HOURS` (default 6) after it started is marked failed, because its worker is presumed gone; the same sweep (every five minutes) deletes expired jobs. Raise the limit for very large crawls.
+- **Logs:** JSON request logs on stdout, level from `ICECRAWL_LOG_LEVEL` (`fatal`, `error`, `warn`, `info` default, `debug`, `trace`, `silent`). The Authorization header is redacted.
+- **Usage:** `/v2/team/credit-usage`, `/token-usage`, `/queue-status`, `/activity` and the `historical` variants report metering for the calling API key (scrapes, and the tokens that `/extract` jobs used). There is no billing: balances read 1,000,000,000.
+- **Storage:** raw HTML snapshots are files addressed by hash under `ICECRAWL_SNAPSHOT_DIR`. They are not deleted when jobs expire; prune the directory yourself if disk space matters (a receipt whose snapshot is gone can no longer be fully verified).
+- **Back up:** Postgres (receipts, jobs, API keys), the signing key file `ICECRAWL_SIGNING_KEY_FILE`, the webhook secret file and the snapshot directory.
+- **Upgrading:** migrations run on start. Receipts made with an older converter version report the `replay` check as skipped (the converter is pinned per receipt); their signature and snapshot checks still work.
+
+## Quality gates
+
+- **Verdict benchmark** (`pnpm bench:verdicts`, also a test): about sixty labelled pages (articles, docs, forums, other languages, pages that merely talk about captchas or 404s, bot walls, captchas, login walls, empty and JavaScript-only pages, soft 404s, error statuses, redirect loops, truncated bodies). The target is zero pages wrongly accepted, zero good pages wrongly refused and every verdict exactly as labelled. Weaknesses that are known and not yet fixed are marked `knownGap` in `packages/fixtures/src/corpus.ts`, printed by the report and not counted; when one gets fixed the test says so.
+- **Injection-scan benchmark:** the same corpus has six attack pages (visible, hidden, comment, zero-size, base64, role marker) that must be flagged and thirteen clean pages that must not.
+- **OpenAPI conformance:** the responses of every implemented endpoint are validated against Firecrawl's published v2 OpenAPI document, which `node scripts/fetch-openapi.mjs` downloads (it is not part of this repository). IceCrawl's own error codes (for example 502 for an untrustworthy page) are intentional differences and must keep the `{success:false, code, error}` shape.
+- **Official SDKs:** `@mendable/firecrawl-js` (pinned) runs in the test suite and `firecrawl-py` in CI, both against the real server code.
+- **Packaging:** `node scripts/pack-smoke.mjs` builds the publishable packages, installs the tarballs in an empty project and uses the SDK, the MCP server (through a real MCP client) and the CLI.
+
+The corpus is synthetic and was written with the classifier's rules in mind: it guards against regressions and documents behaviour, it does not measure accuracy on the real web.
+
 ## Tests
 
 ```bash
-pnpm test                                    # unit tests, no services needed
-DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl pnpm test   # also Postgres + e2e
+pnpm test                                    # unit tests; Postgres, Redis and browser tests are skipped without them
+DATABASE_URL=postgres://icecrawl:icecrawl@localhost:5432/icecrawl REDIS_URL=redis://localhost:6379 pnpm test   # everything
+node scripts/fetch-openapi.mjs               # once: enables the OpenAPI conformance tests
+pnpm bench:verdicts                          # verdict and injection-scan report
+pnpm release:check                           # type check, all tests, build, pack and use the packages
 ```
+
+Contributing: `CONTRIBUTING.md`. Security: `SECURITY.md`.
 
 ## License
 

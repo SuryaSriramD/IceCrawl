@@ -1,0 +1,97 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: icecrawl
+          POSTGRES_PASSWORD: icecrawl
+          POSTGRES_DB: icecrawl
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U icecrawl"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://icecrawl:icecrawl@localhost:5432/icecrawl
+      REDIS_URL: redis://localhost:6379
+      ICECRAWL_OPENAPI_FILE: ${{ github.workspace }}/.cache/v2-openapi.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @icecrawl/engines exec playwright-core install --with-deps chromium
+      - run: node scripts/fetch-openapi.mjs
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Verdict benchmark report
+        run: pnpm bench:verdicts
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build, pack, install the tarballs in an empty project and use them
+        run: node scripts/pack-smoke.mjs
+
+  python-sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pnpm install --frozen-lockfile
+      - run: pip install "firecrawl-py==4.54.0"
+      - name: Run the official Python SDK against a conformance server
+        run: |
+          PORT=3010 pnpm tsx packages/api/test/support/conformance-server.ts &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:3010/health && break; sleep 1; done
+          python scripts/sdk-check/check_python.py
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t icecrawl:ci .

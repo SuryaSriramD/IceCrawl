@@ -42,6 +42,7 @@ Monorepo, one clear job per package:
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
 | `sdk` | Typed client for the v2 API plus receipt verification (`@icecrawl/sdk/verify`). | core, trust, scraper |
 | `mcp` | MCP server (stdio + streamable HTTP) | sdk |
+| `fixtures` | Labelled page corpus, fixture server and the verdict and injection-scan benchmark | core, engines, scraper |
 | `browser` | Pooled browser sessions for actions, interact and screenshots; proxy routing; session lifecycle | core |
 | `agent` | Multi-step LLM web agent built on scrape/search/interact, with a recorded trace | engines, browser, trust |
 | `monitor` | Scheduled re-scrapes, change detection, notifications | worker, trust |
@@ -133,7 +134,7 @@ Each phase gets its own implementation plan.
 3. **Crawl layer:** `/map`, `/crawl`, `/batch/scrape`, webhooks, robots, frontier.
 4. **MCP + SDK:** `@icecrawl/mcp`, `sdk`, injection scan, Claude/Codex docs.
 5. **Search + extract:** SearXNG adapter; LLM extract with schema validation and a check that extracted values appear in the source. Delivered: SearXNG adapter (`engines`), `extract` package, `json`/`summary` scrape formats, asynchronous `/v2/extract` jobs on the scrape queue, search-result scraping, snippet injection screening, MCP `search`/`extract`/`check_extract_status`.
-6. **Hardening and first release:** SDK conformance in CI, fixture benchmarks, docs, public release of phases 1-5.
+6. **Hardening and first release:** SDK conformance in CI, fixture benchmarks, docs, public release of phases 1-5. Delivered in 0.1.0: verdict and injection-scan benchmark (`fixtures`), OpenAPI conformance, official Node and Python SDK checks, CI and release workflows, publishable `sdk`/`mcp`/`cli` packages, rate limiting, team usage endpoints, `/ready`, stale-job sweep. Publishing is a manual step (docs/RELEASING.md).
 7. **Parse + stealth:** `/parse` (file upload to markdown), `stealth`/`enhanced` proxy modes with operator-supplied proxy pools, browser fingerprint hardening, `proxy: auto` escalation on blocked verdicts. Captcha solving is an optional pluggable third-party solver adapter, off by default. Robots.txt and per-domain rate limits remain on by default.
 8. **Interact + agent:** persistent browser sessions (`/scrape/{id}/interact`, `/interact`), code and prompt execution in a session, session TTL and cleanup; `/agent` with trace and snapshots, human-approval hooks for risky steps.
 9. **Monitor + index:** `/monitor` CRUD, schedules, runs and checks, change-tracking format, webhooks and notifications; search index over stored scrapes, provider plugin interface, developer/government/research index endpoints backed by operator-chosen sources.

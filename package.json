@@ -5,6 +5,7 @@
   "engines": { "node": ">=20.12" },
   "pnpm": { "overrides": { "light-my-request": "6.6.0" } },
   "scripts": {
+    "release:check": "pnpm typecheck && pnpm test && pnpm build && node scripts/pack-smoke.mjs",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "db:up": "docker compose up -d postgres redis",

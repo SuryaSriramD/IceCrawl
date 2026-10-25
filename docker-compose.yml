@@ -39,12 +39,23 @@ services:
       ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
       ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
       ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
+      ICECRAWL_RATE_LIMIT_PER_MINUTE: ${ICECRAWL_RATE_LIMIT_PER_MINUTE:-}
+      ICECRAWL_JOB_MAX_RUNTIME_HOURS: ${ICECRAWL_JOB_MAX_RUNTIME_HOURS:-}
+      ICECRAWL_LOG_LEVEL: ${ICECRAWL_LOG_LEVEL:-}
     ports: ["3002:3002"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
   worker:
     build: .
     command: ["pnpm", "--filter", "@icecrawl/api", "worker"]
+    healthcheck:
+      disable: true
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -60,6 +71,8 @@ services:
       ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
       ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
       ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
+      ICECRAWL_JOB_MAX_RUNTIME_HOURS: ${ICECRAWL_JOB_MAX_RUNTIME_HOURS:-}
+      ICECRAWL_LOG_LEVEL: ${ICECRAWL_LOG_LEVEL:-}
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
   searxng:
