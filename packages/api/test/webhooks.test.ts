@@ -20,6 +20,8 @@ const job = (over: Partial<JobRecord> = {}): JobRecord => ({
   createdAt: new Date().toISOString(),
   completedAt: null,
   expiresAt: new Date(Date.now() + 1000).toISOString(),
+  result: null,
+  tokensUsed: null,
   ...over,
 });
 

@@ -135,4 +135,12 @@ describe.skipIf(!redisUrl)('BullQueues', () => {
     await new Promise((r) => setTimeout(r, 600));
     expect((await q.acquireSlot('x', { maxConcurrency: 1, delayMs: 500 })).ok).toBe(true);
   });
+
+  it('delivers extract jobs to the scrape handler', async () => {
+    const seen: ScrapeJobData[] = [];
+    stop = (await Promise.resolve(startWorkers(q, handlers({ scrape: async (d) => (seen.push(d), {}) }), { concurrency: 1 }))).close;
+    await q.addExtract('job-9');
+    await until(() => seen.length === 1);
+    expect(seen[0]).toEqual({ kind: 'extract', jobId: 'job-9' });
+  });
 });

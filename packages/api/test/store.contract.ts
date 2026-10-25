@@ -247,5 +247,15 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       expect(await store.getScrape(id)).toBeNull();
       expect(await store.getReceipt(id)).toBeNull();
     });
+
+    it('stores the result of an extract job', async () => {
+      const job = newJob({ type: 'extract', limit: 0, request: { urls: ['https://example.com'] } });
+      await store.createJob(job);
+      expect(await store.getJob(job.id)).toMatchObject({ type: 'extract', status: 'scraping', result: null, tokensUsed: null });
+      await store.saveJobResult(job.id, { data: { a: 1 }, trust: { sources: [] } }, 42);
+      expect(await store.getJob(job.id)).toMatchObject({ result: { data: { a: 1 }, trust: { sources: [] } }, tokensUsed: 42 });
+      await store.saveJobResult(job.id, { error: 'x', code: 'LLM_ERROR' }, null);
+      expect(await store.getJob(job.id)).toMatchObject({ result: { error: 'x', code: 'LLM_ERROR' }, tokensUsed: null });
+    });
   });
 }

@@ -10,6 +10,9 @@ export class MemoryQueues implements JobQueues {
   async addPages(items: Array<Omit<PageJobData, 'kind'>>): Promise<void> {
     for (const i of items) this.jobs.push({ kind: 'page', ...i });
   }
+  async addExtract(jobId: string): Promise<void> {
+    this.jobs.push({ kind: 'extract', jobId });
+  }
   async addDiscover(jobId: string): Promise<void> {
     this.jobs.push({ kind: 'discover', jobId });
   }

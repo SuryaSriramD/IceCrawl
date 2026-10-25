@@ -20,6 +20,8 @@ const jobFromRow = (r: postgres.Row): JobRecord => ({
   createdAt: new Date(r.created_at).toISOString(),
   completedAt: r.completed_at ? new Date(r.completed_at).toISOString() : null,
   expiresAt: new Date(r.expires_at).toISOString(),
+  result: r.result ?? null,
+  tokensUsed: r.tokens_used ?? null,
 });
 
 export class PgStore implements Store {
@@ -121,6 +123,10 @@ export class PgStore implements Store {
   async getJob(id: string): Promise<JobRecord | null> {
     const [r] = await this.sql`select * from jobs where id = ${id}`;
     return r ? jobFromRow(r) : null;
+  }
+
+  async saveJobResult(jobId: string, result: Record<string, unknown>, tokensUsed: number | null): Promise<void> {
+    await this.sql`update jobs set result = ${this.sql.json(result as never)}, tokens_used = ${tokensUsed} where id = ${jobId}`;
   }
 
   async reserveUrls(jobId: string, requested: number): Promise<number> {

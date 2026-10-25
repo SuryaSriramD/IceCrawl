@@ -60,6 +60,8 @@ export class MemoryStore implements Store {
       request: structuredClone(j.request),
       webhook: j.webhook ? structuredClone(j.webhook) : null,
       limit: j.limit,
+      result: null,
+      tokensUsed: null,
       total: 0,
       completed: 0,
       failed: 0,
@@ -99,6 +101,12 @@ export class MemoryStore implements Store {
     j.status = 'cancelled';
     j.completedAt = new Date().toISOString();
     return true;
+  }
+  async saveJobResult(jobId: string, result: Record<string, unknown>, tokensUsed: number | null): Promise<void> {
+    const j = this.jobs.get(jobId);
+    if (!j) return;
+    j.result = structuredClone(result);
+    j.tokensUsed = tokensUsed;
   }
   async addJobError(jobId: string, e: { url: string; error: string; code: string | null; kind: 'error' | 'robots' }): Promise<void> {
     const list = this.jobErrors.get(jobId) ?? [];

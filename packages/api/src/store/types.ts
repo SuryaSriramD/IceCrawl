@@ -28,7 +28,7 @@ export interface SnapshotMeta {
   bytes: number;
 }
 
-export type JobType = 'crawl' | 'batch';
+export type JobType = 'crawl' | 'batch' | 'extract';
 export type JobStatus = 'scraping' | 'completed' | 'failed' | 'cancelled';
 
 export interface JobRecord {
@@ -45,6 +45,9 @@ export interface JobRecord {
   createdAt: string;
   completedAt: string | null;
   expiresAt: string;
+  /** The stored outcome of an extract job (its data and trust report, or `{ error, code }`); null until saved. */
+  result: Record<string, unknown> | null;
+  tokensUsed: number | null;
 }
 
 export interface NewJob {
@@ -93,6 +96,7 @@ export interface Store {
   ): Promise<{ total: number; completed: number; failed: number; status: JobStatus }>;
   finalizeJob(jobId: string, status: 'completed' | 'failed'): Promise<JobRecord | null>;
   cancelJob(jobId: string): Promise<boolean>;
+  saveJobResult(jobId: string, result: Record<string, unknown>, tokensUsed: number | null): Promise<void>;
   addJobError(
     jobId: string,
     e: { url: string; error: string; code: string | null; kind: 'error' | 'robots' },

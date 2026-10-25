@@ -39,4 +39,10 @@ describe('MemoryQueues', () => {
     await q.addWebhook({ jobId: 'j1', webhookId: 'w1', url: 'https://hooks.example/x', headers: {}, body: '{}' });
     expect(q.webhooks).toHaveLength(1);
   });
+
+  it('queues extract jobs', async () => {
+    const q = new MemoryQueues();
+    await q.addExtract('j9');
+    expect(q.takeNext()).toEqual({ kind: 'extract', jobId: 'j9' });
+  });
 });

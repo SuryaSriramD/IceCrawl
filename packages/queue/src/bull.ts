@@ -37,6 +37,10 @@ export class BullQueues implements JobQueues {
     this.webhookQueue = new Queue<WebhookJobData>(WEBHOOK_QUEUE, { connection: this.connection, prefix: this.prefix });
   }
 
+  async addExtract(jobId: string): Promise<void> {
+    await this.scrapeQueue.add('extract', { kind: 'extract', jobId }, { attempts: 1, removeOnComplete: true, removeOnFail: 1000 });
+  }
+
   async addPages(items: Array<Omit<PageJobData, 'kind'>>): Promise<void> {
     if (items.length === 0) return;
     await this.scrapeQueue.addBulk(

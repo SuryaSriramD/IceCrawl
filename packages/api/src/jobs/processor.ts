@@ -16,6 +16,7 @@ import type { ScraperConfig } from '@icecrawl/scraper';
 import type { PrivateSigningKey } from '@icecrawl/trust';
 import { scrapeAndPersist, type ExtractionDeps } from '../scrape-service';
 import type { JobRecord, SnapshotStore, Store } from '../store/types';
+import { processExtractJob } from './extract';
 import { sendWebhook } from './webhooks';
 
 export interface JobDeps {
@@ -52,6 +53,10 @@ export async function processScrapeJob(
 ): Promise<{ delayMs?: number }> {
   const job = await deps.store.getJob(data.jobId);
   if (!job || job.status !== 'scraping') return {};
+  if (data.kind === 'extract') {
+    await processExtractJob(deps, job);
+    return {};
+  }
   return data.kind === 'discover' ? discover(deps, job) : page(deps, job, data, ctx);
 }
 
