@@ -37,6 +37,7 @@ Monorepo, one clear job per package:
 | `engines` | `fetch`, `playwright`, `pdf`, `document`, `search` (SearXNG); each declares `{quality, features, maxTime}`; picker + waterfall | core |
 | `scraper` | Shared scrape pipeline: flags, picker, waterfall, HTML conversion, verdict, receipt. Called by `api` now and `worker` from phase 3. | core, engines, trust |
 | `crawler` | Pure crawl logic: URL normalisation, link-scope rules, robots.txt (RFC 9309), sitemap discovery. | none |
+| `extract` | LLM clients (OpenAI-compatible and Anthropic, bring your own key), schema-validated extraction with one repair attempt, grounding check, summaries | core |
 | `queue` | `JobQueues` interface, BullMQ implementation and in-memory twin; frontier de-dup and concurrency/delay slots in Redis. | none |
 | `trust` | Verdict classifier, receipts, signing, injection scan | core |
 | `sdk` | Typed client for the v2 API plus receipt verification (`@icecrawl/sdk/verify`). | core, trust, scraper |
@@ -55,6 +56,7 @@ Scrape flow: request → feature flags → picker → waterfall → trust pipeli
 2. **Receipt:** receipt version, scrape ID, requested and final URL, HTTP status, fetch timestamp, engine chain with each rejection reason and verdict, SHA-256 of raw HTML, SHA-256 of output, converter name and version.
 3. **Signature:** Ed25519 over RFC 8785 canonical JSON. Raw HTML is stored by hash. `GET /v2/receipts/{id}` returns the receipt and `icecrawl verify` re-hashes the snapshot, re-runs the pinned converter and compares. Public keys at `/.well-known/icecrawl-keys.json`, so receipts survive key rotation.
 4. **Injection scan:** flags hidden text and instruction-like content. Default: content returned with `trust.injection` findings. Strict mode: quarantine. Implemented in phase 4 as a versioned heuristic scanner (instruction phrases, hidden elements via inline styles/hidden attribute/comments, invisible and tag characters, base64 payloads). Findings are returned in `trust.injection` and summarized in the signed receipt; `verify` replays the scan. Strict mode (`ICECRAWL_INJECTION=quarantine`) answers `INJECTION_SUSPECTED` for high-severity pages.
+5. **Extraction grounding (phase 5):** values the language model extracts are checked against the page text it was given and reported as grounded, partial or ungrounded in `trust.extraction`; strict mode fails on ungrounded values. The extracted data is not covered by the signed scrape receipt (each source page has its own receipt).
 
 ## 4. API compatibility
 
@@ -69,7 +71,7 @@ Scrape flow: request → feature flags → picker → waterfall → trust pipeli
 
 Package `@icecrawl/mcp`, transports stdio and streamable HTTP, implemented over `sdk`.
 
-Tools: `scrape`, `map`, `crawl`, `check_crawl_status`, `cancel_crawl`, `batch_scrape`, `check_batch_status`, `verify_receipt` (search and extract arrive with phase 5). The prefix `icecrawl_` is configurable so Firecrawl's names can be used.
+Tools: `scrape`, `map`, `crawl`, `check_crawl_status`, `cancel_crawl`, `batch_scrape`, `check_batch_status`, `verify_receipt`, `search`, `extract`, `check_extract_status`. The prefix `icecrawl_` is configurable so Firecrawl's names can be used.
 
 Agent-safety defaults:
 - Content is wrapped in a labeled "untrusted web content" block; injection findings appear in the result text.
@@ -130,7 +132,7 @@ Each phase gets its own implementation plan.
 2. **Browser + signing:** Playwright engine, picker, actions, screenshots, Ed25519 signing, verify, snapshots.
 3. **Crawl layer:** `/map`, `/crawl`, `/batch/scrape`, webhooks, robots, frontier.
 4. **MCP + SDK:** `@icecrawl/mcp`, `sdk`, injection scan, Claude/Codex docs.
-5. **Search + extract:** SearXNG adapter; LLM extract with schema validation and a check that extracted values appear in the source.
+5. **Search + extract:** SearXNG adapter; LLM extract with schema validation and a check that extracted values appear in the source. Delivered: SearXNG adapter (`engines`), `extract` package, `json`/`summary` scrape formats, asynchronous `/v2/extract` jobs on the scrape queue, search-result scraping, snippet injection screening, MCP `search`/`extract`/`check_extract_status`.
 6. **Hardening and first release:** SDK conformance in CI, fixture benchmarks, docs, public release of phases 1-5.
 7. **Parse + stealth:** `/parse` (file upload to markdown), `stealth`/`enhanced` proxy modes with operator-supplied proxy pools, browser fingerprint hardening, `proxy: auto` escalation on blocked verdicts. Captcha solving is an optional pluggable third-party solver adapter, off by default. Robots.txt and per-domain rate limits remain on by default.
 8. **Interact + agent:** persistent browser sessions (`/scrape/{id}/interact`, `/interact`), code and prompt execution in a session, session TTL and cleanup; `/agent` with trace and snapshots, human-approval hooks for risky steps.

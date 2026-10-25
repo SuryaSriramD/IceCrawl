@@ -2,7 +2,7 @@
 
 Open-source, Firecrawl-v2-compatible web scraping API where every scrape comes with a verdict and a provenance receipt.
 
-> Status: phase 4 (MCP, SDK, prompt-injection scan). Scrape, crawl, batch, map, signed receipts, an MCP server for Claude and Codex and a typed SDK work. Search, extract and the rest follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
+> Status: phase 5 (search and extract). Scrape, crawl, batch, map, search (SearXNG), LLM extract with a grounding check, signed receipts, prompt-injection scan, an MCP server for Claude and Codex and a typed SDK work. The rest follows the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
 
 ## Quick start
 
@@ -98,7 +98,7 @@ tool_timeout_sec = 300
 
 **Streamable HTTP** (one shared server): run `ICECRAWL_MCP_TOKEN=secret node packages/mcp/bin/icecrawl-mcp.mjs --http --port 3003`, then `claude mcp add --transport http icecrawl http://127.0.0.1:3003/mcp --header "Authorization: Bearer secret"`. The HTTP server binds to loopback, checks the `Host` header, and refuses to listen on other addresses without `ICECRAWL_MCP_TOKEN`.
 
-Tools: `icecrawl_scrape`, `icecrawl_map`, `icecrawl_crawl`, `icecrawl_check_crawl_status`, `icecrawl_cancel_crawl`, `icecrawl_batch_scrape`, `icecrawl_check_batch_status`, `icecrawl_verify_receipt`. Set `ICECRAWL_MCP_TOOL_PREFIX=firecrawl_` to expose Firecrawl's tool names (`firecrawl_scrape`, `firecrawl_check_crawl_status`, ...) so existing prompts and skills keep working. `FIRECRAWL_API_URL` / `FIRECRAWL_API_KEY` are accepted as fallbacks.
+Tools: `icecrawl_scrape`, `icecrawl_map`, `icecrawl_crawl`, `icecrawl_check_crawl_status`, `icecrawl_cancel_crawl`, `icecrawl_batch_scrape`, `icecrawl_check_batch_status`, `icecrawl_search`, `icecrawl_extract`, `icecrawl_check_extract_status`, `icecrawl_verify_receipt`. Set `ICECRAWL_MCP_TOOL_PREFIX=firecrawl_` to expose Firecrawl's tool names (`firecrawl_scrape`, `firecrawl_check_crawl_status`, ...) so existing prompts and skills keep working. `FIRECRAWL_API_URL` / `FIRECRAWL_API_KEY` are accepted as fallbacks.
 
 What makes the results safe for agents:
 
@@ -119,6 +119,47 @@ const doc = await ic.scrape('https://example.com', { formats: ['markdown'] });  
 const site = await ic.crawl('https://docs.example.com', { limit: 20 });            // waits and collects every page
 const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
 ```
+
+## Search
+
+`POST /v2/search` follows Firecrawl's v2 request and response (`query`, `limit`, `sources` web/news/images, `categories` developer/research/pdf, `tbs` day/week/month/year, `includeDomains` or `excludeDomains`, `safe`, `ignoreInvalidURLs`, `scrapeOptions`). It searches through a [SearXNG](https://docs.searxng.org/) instance that you run:
+
+```bash
+docker compose --profile search up -d searxng     # json format enabled by deploy/searxng/settings.yml
+export ICECRAWL_SEARXNG_URL=http://localhost:8080
+curl -s http://localhost:3002/v2/search -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"query":"open source web scraper","limit":5,"scrapeOptions":{"formats":["markdown"]}}'
+```
+
+- With `scrapeOptions.formats` the first `ICECRAWL_SEARCH_MAX_SCRAPE` results are read through the normal pipeline: every result carries a `trust` block and a receipt id, and a page that is blocked, a captcha, a login wall or quarantined comes back as a result with `metadata.error` and no content.
+- Titles and descriptions are written by third parties, so they are scanned for prompt injection: flagged results carry `trust.snippetInjection`, and with `ICECRAWL_INJECTION=quarantine` high-severity results are dropped (and counted in `warning`).
+- Not available, and reported in `warning` instead of being ignored silently: the `alexandria` source, the `gov` category, `location`/`country`, hourly and custom date ranges.
+- Without `ICECRAWL_SEARXNG_URL` the endpoint answers `501 SEARCH_NOT_CONFIGURED`.
+
+## Extract
+
+`POST /v2/extract` reads pages and has a language model that you choose extract data, like Firecrawl's `/v2/extract`: it returns an `id` and you poll `GET /v2/extract/{id}` (`processing`, `completed`, `failed`). The same machinery serves the `json` and `summary` formats of `/v2/scrape` (and of crawl, batch and search results).
+
+```bash
+export ICECRAWL_LLM_PROVIDER=openai          # or anthropic; "openai" means any OpenAI-compatible server
+export ICECRAWL_LLM_MODEL=gpt-4o-mini        # for example; or a local model on Ollama
+export ICECRAWL_LLM_API_KEY=sk-...           # may be omitted for a local server with ICECRAWL_LLM_BASE_URL
+curl -s http://localhost:3002/v2/extract -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"urls":["https://example.com/blog/*"],"prompt":"Title and author of each post","schema":{"type":"object","properties":{"posts":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"author":{"type":"string"}}}}}},"showSources":true}'
+```
+
+How it stays trustworthy:
+
+1. Pages are read through the normal pipeline: only accepted pages reach the model, quarantined and blocked pages never do. Every source page has a receipt (`trust.sources`).
+2. The model sees the pages as untrusted data and is told to extract only; its answer must be a JSON object that validates against your JSON Schema (one repair attempt, then `EXTRACTION_FAILED`).
+3. Every string and number in the answer is checked against the page text the model received: `grounded` (found), `partial` (a long value whose words are mostly there) or `ungrounded` (not found). The counts and the list are in `trust.extraction.grounding`. With `ICECRAWL_STRICT=true` any ungrounded value fails the request.
+4. Sources that show prompt-injection indicators are marked `injectionFlagged` next to the data.
+
+What the check does not do: it proves a value occurs in the pages, not that it sits in the right field, and values the model computed or reformatted (a percentage as a fraction, a re-formatted date) show up as `ungrounded`, meaning "not found literally", not "false". The extracted data is not covered by the receipt signature (only the pages are); treat it as a checked claim, not a signed fact.
+
+Privacy: the text of the pages you extract from is sent to the model endpoint you configured. Use a local OpenAI-compatible server if that is not acceptable. The API key is only sent to that endpoint and is removed from error messages.
+
+Limits: `ICECRAWL_LLM_MAX_INPUT_CHARS` (default 100000) is shared between the pages of one request, `ICECRAWL_LLM_MAX_OUTPUT_TOKENS` (default 4096) bounds the answer, `ICECRAWL_EXTRACT_MAX_PAGES` (default 20) bounds pattern and search expansion. A URL ending in `*` stands for that page and everything below it; `enableWebSearch` adds the top three search results for the prompt when search is configured.
 
 ## Tests
 

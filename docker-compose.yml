@@ -34,6 +34,11 @@ services:
       ICECRAWL_BROWSER_NO_SANDBOX: "true"
       ICECRAWL_RUN_WORKER: "false"
       ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
+      ICECRAWL_SEARXNG_URL: ${ICECRAWL_SEARXNG_URL:-}
+      ICECRAWL_LLM_PROVIDER: ${ICECRAWL_LLM_PROVIDER:-}
+      ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
+      ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
+      ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
     ports: ["3002:3002"]
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
@@ -50,8 +55,20 @@ services:
       ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
       ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
       ICECRAWL_BROWSER_NO_SANDBOX: "true"
+      ICECRAWL_SEARXNG_URL: ${ICECRAWL_SEARXNG_URL:-}
+      ICECRAWL_LLM_PROVIDER: ${ICECRAWL_LLM_PROVIDER:-}
+      ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
+      ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
+      ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
+  searxng:
+    image: searxng/searxng@sha256:7c7cbe509429e82755104b2a95f52085a98633c95d53f44e4e905fa3a59f08c8
+    profiles: ["search"]
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro"]
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
 volumes:
   pgdata: {}
   snapshots: {}

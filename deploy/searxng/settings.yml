@@ -1,0 +1,17 @@
+# Settings for the optional SearXNG service (docker compose --profile search up -d searxng).
+# IceCrawl needs the json output format; the limiter would block API clients.
+# This instance is meant to be reachable only from IceCrawl: do not expose it publicly,
+# and replace secret_key with your own random value.
+use_default_settings: true
+general:
+  instance_name: icecrawl-searxng
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+server:
+  secret_key: "replace-me-with-a-random-value"
+  limiter: false
+  public_instance: false
+  image_proxy: false
