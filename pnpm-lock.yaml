@@ -124,6 +124,21 @@ importers:
         specifier: ^8.17.1
         version: 8.20.0
 
+  packages/fixtures:
+    dependencies:
+      '@icecrawl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@icecrawl/engines':
+        specifier: workspace:*
+        version: link:../engines
+      '@icecrawl/scraper':
+        specifier: workspace:*
+        version: link:../scraper
+      playwright-core:
+        specifier: ^1.64.1
+        version: 1.64.1
+
   packages/mcp:
     dependencies:
       '@icecrawl/core':

@@ -8,7 +8,8 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "db:up": "docker compose up -d postgres redis",
-    "dev": "pnpm --filter @icecrawl/api dev"
+    "dev": "pnpm --filter @icecrawl/api dev",
+    "bench:verdicts": "pnpm --filter @icecrawl/fixtures bench:verdicts"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
