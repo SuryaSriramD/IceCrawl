@@ -126,7 +126,7 @@ const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
 
 ```bash
 docker compose --profile search up -d searxng     # json format enabled by deploy/searxng/settings.yml
-export ICECRAWL_SEARXNG_URL=http://localhost:8080
+export ICECRAWL_SEARXNG_URL=http://localhost:8080   # if 8080 is taken, start compose with SEARXNG_PORT=8082 and use that port here
 curl -s http://localhost:3002/v2/search -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"query":"open source web scraper","limit":5,"scrapeOptions":{"formats":["markdown"]}}'
 ```
