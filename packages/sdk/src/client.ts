@@ -2,6 +2,9 @@ import type {
   ApiErrorBody,
   BatchOptions,
   CrawlOptions,
+  ExtractOptions,
+  ExtractStartResponse,
+  ExtractStatusResponse,
   JobErrorsResponse,
   JobStartResponse,
   JobStatusResponse,
@@ -10,6 +13,8 @@ import type {
   PublicKeyEntry,
   ScrapeDocument,
   ScrapeOptions,
+  SearchOptions,
+  SearchResponse,
   SignedReceipt,
   TrustBlock,
 } from '@icecrawl/core';
@@ -140,6 +145,34 @@ export class IceCrawl {
   async batchScrape(urls: string[], options: BatchOptions = {}, wait: WaitOptions = {}): Promise<JobStatusResponse> {
     const { id } = await this.startBatchScrape(urls, options);
     return this.waitAndCollect((skip) => this.getBatchStatusAt(id, skip), wait);
+  }
+
+  search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
+    return this.json('POST', '/v2/search', { ...options, query });
+  }
+
+  startExtract(urls: string[], options: ExtractOptions = {}): Promise<ExtractStartResponse> {
+    return this.json('POST', '/v2/extract', { ...options, urls });
+  }
+  /** Failed and cancelled jobs are returned as data (`status`, `error`, `code`), not thrown. */
+  getExtractStatus(id: string): Promise<ExtractStatusResponse> {
+    return this.json('GET', `/v2/extract/${id}`);
+  }
+  /** Starts an extraction and waits for it. Throws `IceCrawlApiError` with the job's code if it fails. */
+  async extract(urls: string[], options: ExtractOptions = {}, wait: WaitOptions = {}): Promise<ExtractStatusResponse> {
+    const { id } = await this.startExtract(urls, options);
+    const interval = wait.pollIntervalMs ?? 1000;
+    const limit = wait.timeoutMs ?? 600_000;
+    const deadline = Date.now() + limit;
+    for (;;) {
+      const s = await this.getExtractStatus(id);
+      if (s.status === 'completed') return s;
+      if (s.status === 'failed' || s.status === 'cancelled') {
+        throw new IceCrawlApiError(422, s.code ?? 'EXTRACTION_FAILED', s.error ?? `The extraction ${s.status}.`);
+      }
+      if (Date.now() > deadline) throw new IceCrawlApiError(408, 'WAIT_TIMEOUT', `The extraction was still running after ${limit} ms (id ${id})`);
+      await sleep(interval);
+    }
   }
 
   async getReceipt(id: string): Promise<SignedReceipt> {

@@ -151,3 +151,62 @@ describe('IceCrawl client', () => {
     expect(calls.at(-1)?.url).toBe('http://localhost:3002/.well-known/icecrawl-keys.json');
   });
 });
+
+describe('search and extract', () => {
+  it('posts a search with the query and returns the whole response', async () => {
+    const body = { success: true, id: 's1', creditsUsed: 1, data: { web: [{ title: 'T', description: 'D', url: 'https://e.com/' }] } };
+    const { fn, calls } = fakeFetch(() => ({ json: body }));
+    const ic = new IceCrawl({ apiUrl: 'http://api.test', fetch: fn });
+    expect(await ic.search('ice crawl', { limit: 3, tbs: 'qdr:w' })).toEqual(body);
+    expect(calls[0]).toMatchObject({ method: 'POST', url: 'http://api.test/v2/search', body: { query: 'ice crawl', limit: 3, tbs: 'qdr:w' } });
+  });
+
+  it('starts an extraction and polls until it completes', async () => {
+    let polls = 0;
+    const { fn, calls } = fakeFetch((c) => {
+      if (c.method === 'POST') return { json: { success: true, id: 'x1', invalidURLs: [] } };
+      polls++;
+      return {
+        json:
+          polls < 3
+            ? { success: true, status: 'processing', expiresAt: 'later' }
+            : { success: true, status: 'completed', expiresAt: 'later', data: { a: 1 }, tokensUsed: 5 },
+      };
+    });
+    const ic = new IceCrawl({ apiUrl: 'http://api.test', fetch: fn });
+    const r = await ic.extract(['https://e.com/a'], { prompt: 'p', schema: { type: 'object' } }, { pollIntervalMs: 1 });
+    expect(r).toMatchObject({ status: 'completed', data: { a: 1 }, tokensUsed: 5 });
+    expect(calls[0]).toMatchObject({ method: 'POST', url: 'http://api.test/v2/extract', body: { urls: ['https://e.com/a'], prompt: 'p', schema: { type: 'object' } } });
+    expect(calls.at(-1)?.url).toBe('http://api.test/v2/extract/x1');
+    expect(polls).toBe(3);
+  });
+
+  it('throws the job error when the extraction fails', async () => {
+    const { fn } = fakeFetch((c) =>
+      c.method === 'POST'
+        ? { json: { success: true, id: 'x2' } }
+        : { json: { success: true, status: 'failed', expiresAt: 'later', error: 'The model did not return data', code: 'EXTRACTION_FAILED' } },
+    );
+    const err = await new IceCrawl({ apiUrl: 'http://api.test', fetch: fn })
+      .extract(['https://e.com/a'], { prompt: 'p' }, { pollIntervalMs: 1 })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(IceCrawlApiError);
+    expect(err).toMatchObject({ code: 'EXTRACTION_FAILED', message: 'The model did not return data' });
+  });
+
+  it('stops waiting after the timeout and names the job id', async () => {
+    const { fn } = fakeFetch((c) =>
+      c.method === 'POST' ? { json: { success: true, id: 'x3' } } : { json: { success: true, status: 'processing', expiresAt: 'later' } },
+    );
+    const err = await new IceCrawl({ apiUrl: 'http://api.test', fetch: fn })
+      .extract(['https://e.com/a'], { prompt: 'p' }, { pollIntervalMs: 1, timeoutMs: 20 })
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'WAIT_TIMEOUT' });
+    expect((err as Error).message).toContain('x3');
+  });
+
+  it('getExtractStatus returns failed jobs as data', async () => {
+    const { fn } = fakeFetch(() => ({ json: { success: true, status: 'failed', expiresAt: 'later', error: 'x', code: 'LLM_ERROR' } }));
+    expect(await new IceCrawl({ apiUrl: 'http://api.test', fetch: fn }).getExtractStatus('x4')).toMatchObject({ status: 'failed', code: 'LLM_ERROR' });
+  });
+});
