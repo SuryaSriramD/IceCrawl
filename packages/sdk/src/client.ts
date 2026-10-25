@@ -19,6 +19,22 @@ import type {
   TrustBlock,
 } from '@icecrawl/core';
 
+export interface InteractSession {
+  id: string;
+  expiresAt: string;
+  warning?: string;
+}
+
+export interface InteractResult {
+  success: boolean;
+  stdout: string | null;
+  result: string | null;
+  stderr: string | null;
+  exitCode: number | null;
+  killed: boolean;
+  error: string | null;
+}
+
 /** A file to parse with `IceCrawl.parse`. */
 export interface ParseFile {
   name: string;
@@ -139,6 +155,19 @@ export class IceCrawl {
   }
   async getParseFormats(): Promise<ParseFormat[]> {
     return (await this.json<{ data: { formats: ParseFormat[] } }>('GET', '/v2/parse/formats')).data.formats;
+  }
+
+  /** Opens a browser session. Running code in it needs ICECRAWL_INTERACT_CODE=true on the server (docs/interact.md). */
+  async createInteractSession(o: { ttl?: number; activityTtl?: number } = {}): Promise<InteractSession> {
+    const r = await this.json<{ id: string; expiresAt: string; warning?: string }>('POST', '/v2/interact', o);
+    return { id: r.id, expiresAt: r.expiresAt, ...(r.warning ? { warning: r.warning } : {}) };
+  }
+  /** Runs node code with `page`, `context` and `browser` in scope. `timeout` is in seconds. */
+  executeInteract(sessionId: string, code: string, o: { timeout?: number } = {}): Promise<InteractResult> {
+    return this.json('POST', `/v2/interact/${sessionId}/execute`, { code, language: 'node', ...o });
+  }
+  async deleteInteractSession(sessionId: string): Promise<void> {
+    await this.json('DELETE', `/v2/interact/${sessionId}`);
   }
 
   async map(url: string, options: MapOptions = {}): Promise<MapLink[]> {

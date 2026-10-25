@@ -94,6 +94,9 @@ export interface AppConfig {
   searxngUrl?: string;
   searchMaxScrape: number;
   maxUploadBytes: number;
+  /** Whether POST /v2/interact/{id}/execute may run code (node only). Off unless the operator turns it on. */
+  interactCode: boolean;
+  interactMaxSessions: number;
   /** Operator proxy pools (http(s) URLs); empty when not configured. */
   proxiesEnhanced: string[];
   proxiesStealth: string[];
@@ -141,6 +144,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     searxngUrl: loadSearxngUrl(env),
     searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
     maxUploadBytes: positiveInt(env, 'ICECRAWL_MAX_UPLOAD_BYTES', 50 * 1024 * 1024),
+    interactCode: env.ICECRAWL_INTERACT_CODE === 'true',
+    interactMaxSessions: positiveInt(env, 'ICECRAWL_INTERACT_MAX_SESSIONS', 5),
     proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),

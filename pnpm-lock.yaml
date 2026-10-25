@@ -65,6 +65,9 @@ importers:
       undici:
         specifier: ^6.21.0
         version: 6.29.1
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@icecrawl/cli':
         specifier: workspace:*

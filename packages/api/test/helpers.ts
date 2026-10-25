@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { featureSet, type Engine, type EngineResult, type SearchProvider } from '@icecrawl/engines';
+import { featureSet, type Engine, type EngineResult, type SearchProvider, type SessionManager } from '@icecrawl/engines';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import { buildApp } from '../src/app';
 import type { ExtractionDeps } from '../src/scrape-service';
@@ -28,7 +28,7 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
 }
 
 export async function makeApp(
-  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number } = {},
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number; sessions?: SessionManager | null } = {},
 ) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
@@ -45,6 +45,7 @@ export async function makeApp(
     search: opts.search,
     searchMaxScrape: opts.searchMaxScrape,
     maxUploadBytes: opts.maxUploadBytes,
+    sessions: opts.sessions,
   });
   return { app, store, snapshots, keyId, auth: { authorization: 'Bearer ic-test' } };
 }

@@ -19,6 +19,7 @@ const app = buildApp({
   search: rt.search,
   searchMaxScrape: config.searchMaxScrape,
   maxUploadBytes: config.maxUploadBytes,
+  sessions: rt.sessions,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },
   ready: () => rt.ready(),

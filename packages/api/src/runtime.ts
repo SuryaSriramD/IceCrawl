@@ -1,4 +1,4 @@
-import { createPlaywrightEngine, createSearxngProvider, fetchEngine, ProxyPool, type Engine, type PlaywrightEngine, type SearchProvider } from '@icecrawl/engines';
+import { createPlaywrightEngine, createSearxngProvider, fetchEngine, ProxyPool, SessionManager, type Engine, type PlaywrightEngine, type SearchProvider } from '@icecrawl/engines';
 import { HostThrottle } from '@icecrawl/scraper';
 import { createLlmClient } from '@icecrawl/extract';
 import { BullQueues } from '@icecrawl/queue';
@@ -24,6 +24,7 @@ export interface Runtime {
   signer: PrivateSigningKey;
   engines: Engine[];
   browser: PlaywrightEngine | null;
+  sessions: SessionManager | null;
   queues: BullQueues;
   jobDeps: JobDeps;
   delivery: DeliveryDeps;
@@ -51,6 +52,9 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
       })
     : null;
   const engines: Engine[] = browser ? [browser, fetchEngine] : [fetchEngine];
+  const sessions = config.browserEnabled
+    ? new SessionManager({ allowPrivateNetworks: config.allowPrivateNetworks, noSandbox: config.browserNoSandbox, allowCode: config.interactCode, maxSessions: config.interactMaxSessions })
+    : null;
 
   const queues = new BullQueues({ redisUrl: config.redisUrl, prefix: config.queuePrefix, maxAttempts: config.scrapeMaxAttempts });
   const scraper = {
@@ -88,6 +92,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     signer,
     engines,
     browser,
+    sessions,
     queues,
     jobDeps,
     extraction,
@@ -100,6 +105,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     delivery: { secret: webhookSecret, allowPrivate: config.allowPrivateNetworks },
     async close() {
       await queues.close();
+      await sessions?.close();
       await browser?.close();
       await sql.end();
     },

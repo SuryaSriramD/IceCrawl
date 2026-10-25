@@ -26,7 +26,8 @@
     "@icecrawl/trust": "workspace:*",
     "fastify": "^5.1.0",
     "postgres": "^3.4.5",
-    "undici": "^6.21.0"
+    "undici": "^6.21.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@icecrawl/cli": "workspace:*",

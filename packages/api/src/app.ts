@@ -1,11 +1,12 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from 'fastify';
 import { IceCrawlError, normalizeScrapeRequest, type SignedReceipt } from '@icecrawl/core';
-import type { Engine, SearchProvider } from '@icecrawl/engines';
+import type { Engine, SearchProvider, SessionManager } from '@icecrawl/engines';
 import type { ScraperConfig } from '@icecrawl/scraper';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
+import { registerInteractRoutes } from './routes/interact';
 import { registerParseRoutes } from './routes/parse';
 import { registerExtractRoutes } from './routes/extract';
 import { registerSearchRoute } from './routes/search';
@@ -28,6 +29,8 @@ export interface AppDeps {
   searchMaxScrape?: number;
   /** Largest file accepted by POST /v2/parse, in bytes (default 50 MiB). */
   maxUploadBytes?: number;
+  /** Browser sessions behind /v2/interact; omit when the browser engine is off. */
+  sessions?: SessionManager | null;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
   rateLimiter?: RateLimiter | null;
   team?: { workerConcurrency?: number };
@@ -45,7 +48,6 @@ declare module 'fastify' {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PLANNED: Record<string, number> = {
-  interact: 8,
   agent: 8,
   monitor: 9,
 };
@@ -122,6 +124,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerSearchRoute(v2, deps);
       registerExtractRoutes(v2, deps);
       registerParseRoutes(v2, deps);
+      registerInteractRoutes(v2, deps);
       registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {
