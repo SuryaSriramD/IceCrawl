@@ -1,12 +1,14 @@
 import { brotliDecompressSync, gunzipSync, inflateSync } from 'node:zlib';
-import { Agent, request } from 'undici';
+import { Agent, ProxyAgent, request, type Dispatcher } from 'undici';
 import { IceCrawlError } from '@icecrawl/core';
 import { featureSet } from './flags';
-import { assertUrlAllowed, createSafeLookup } from './ssrf';
+import { assertHostPublic, assertUrlAllowed, createSafeLookup } from './ssrf';
 import type { Engine, EngineContext, EngineResult } from './types';
 
 const MAX_REDIRECTS = 10;
 export const USER_AGENT = 'Mozilla/5.0 (compatible; IceCrawl/0.1; +https://github.com/icecrawl/icecrawl)';
+/** Sent instead of USER_AGENT when a request goes through an enhanced or stealth proxy. */
+export const STEALTH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 function flattenHeaders(h: Record<string, string | string[] | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -91,24 +93,29 @@ function mapError(err: unknown): never {
 }
 
 async function scrape(ctx: EngineContext): Promise<EngineResult> {
-  const agent = new Agent({
-    connect: {
-      lookup: createSafeLookup(ctx.allowPrivateNetworks) as never,
-      rejectUnauthorized: !ctx.skipTlsVerification,
-    },
-  });
+  // with a proxy the proxy makes the connection, so the address check happens in assertHostPublic below
+  const agent: Dispatcher = ctx.proxy
+    ? new ProxyAgent({ uri: ctx.proxy, requestTls: { rejectUnauthorized: !ctx.skipTlsVerification } })
+    : new Agent({
+        connect: {
+          lookup: createSafeLookup(ctx.allowPrivateNetworks) as never,
+          rejectUnauthorized: !ctx.skipTlsVerification,
+        },
+      });
   const signal = AbortSignal.timeout(ctx.timeoutMs);
   try {
     let url = ctx.url;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      assertUrlAllowed(url, ctx.allowPrivateNetworks);
+      const target = assertUrlAllowed(url, ctx.allowPrivateNetworks);
+      if (ctx.proxy) await assertHostPublic(target, ctx.allowPrivateNetworks);
       const res = await request(url, {
         method: 'GET',
         dispatcher: agent,
         signal,
         headers: {
-          'user-agent': USER_AGENT,
+          'user-agent': ctx.stealth ? STEALTH_USER_AGENT : USER_AGENT,
           accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+          ...(ctx.stealth ? { 'accept-language': 'en-US,en;q=0.9' } : {}),
           'accept-encoding': 'gzip, deflate, br',
           ...lowerKeys(ctx.headers),
         },
@@ -148,7 +155,7 @@ async function scrape(ctx: EngineContext): Promise<EngineResult> {
 export const fetchEngine: Engine = {
   name: 'fetch',
   quality: 5,
-  features: featureSet(['skipTlsVerification', 'pdf', 'document']),
+  features: featureSet(['skipTlsVerification', 'pdf', 'document', 'stealthProxy']),
   maxReasonableTimeMs: 15_000,
   scrape,
 };

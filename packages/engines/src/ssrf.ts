@@ -76,6 +76,23 @@ export function assertUrlAllowed(raw: string, allowPrivate: boolean): URL {
   return url;
 }
 
+/**
+ * Resolves the target host here and refuses it when it points at a private address. Used when a proxy makes the
+ * connection (the proxy resolves again from its own network, so this is a check, not a guarantee).
+ */
+export async function assertHostPublic(url: URL, allowPrivate: boolean, resolver: typeof dns.promises.lookup = dns.promises.lookup): Promise<void> {
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (allowPrivate || isIP(host) !== 0) return;
+  let addresses: dns.LookupAddress[];
+  try {
+    addresses = await resolver(host, { all: true });
+  } catch {
+    throw new IceCrawlError('DNS', 'Could not resolve the host');
+  }
+  const bad = addresses.find((a) => isPrivateAddress(a.address));
+  if (bad) throw new IceCrawlError('SSRF_BLOCKED', `Host ${host} resolves to a private address ${bad.address}`);
+}
+
 type LookupCallback = (err: Error | null, address?: unknown, family?: number) => void;
 
 export function createSafeLookup(allowPrivate: boolean, resolver: typeof dns.lookup = dns.lookup) {

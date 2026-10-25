@@ -2,6 +2,7 @@ export * from './flags';
 export * from './types';
 export * from './picker';
 export * from './ssrf';
+export * from './proxy-pool';
 export * from './fetch';
 export * from './egress-proxy';
 export * from './playwright';

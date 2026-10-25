@@ -12,6 +12,10 @@ export interface EngineContext {
   mobile: boolean;
   actions: Action[];
   screenshot: ScreenshotOptions | null;
+  /** Operator proxy to send this request through (http(s) URL, may hold credentials). Absent: connect directly. */
+  proxy?: string;
+  /** Present a regular browser fingerprint instead of the honest IceCrawl one. Set together with `proxy`. */
+  stealth?: boolean;
 }
 
 export interface ActionOutputs {
