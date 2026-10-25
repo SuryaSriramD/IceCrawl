@@ -5,6 +5,7 @@ import { BullQueues } from '@icecrawl/queue';
 import type { PrivateSigningKey } from '@icecrawl/trust';
 import type postgres from 'postgres';
 import type { AppConfig } from './config';
+import type { MonitorStore } from './monitor/types';
 import { makeFetcher } from './jobs/fetcher';
 import type { JobDeps } from './jobs/processor';
 import type { DeliveryDeps } from './jobs/webhooks';
@@ -12,6 +13,7 @@ import { RedisRateLimiter, type RateLimiter } from './ratelimit';
 import type { ExtractionDeps } from './scrape-service';
 import { loadOrCreateSigningKey } from './signing';
 import { migrate } from './store/migrate';
+import { PgMonitorStore } from './store/monitor-pg';
 import { PgStore, createSql } from './store/pg';
 import { FileSnapshotStore } from './store/snapshots';
 import type { SnapshotStore, Store } from './store/types';
@@ -25,6 +27,7 @@ export interface Runtime {
   engines: Engine[];
   browser: PlaywrightEngine | null;
   sessions: SessionManager | null;
+  monitors: MonitorStore;
   queues: BullQueues;
   jobDeps: JobDeps;
   delivery: DeliveryDeps;
@@ -40,6 +43,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
   const sql = createSql(config.databaseUrl);
   await migrate(sql);
   const store = new PgStore(sql);
+  const monitors = new PgMonitorStore(sql);
   const snapshots = new FileSnapshotStore(config.snapshotDir);
   const signer = await loadOrCreateSigningKey(config.signingKeyFile, store);
   const webhookSecret = await loadOrCreateWebhookSecret(config.webhookSecretFile);
@@ -83,6 +87,8 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     extraction,
     search,
     extractMaxPages: config.extractMaxPages,
+    monitors,
+    monitorMaxPages: config.monitorMaxPages,
   };
 
   return {
@@ -93,6 +99,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     engines,
     browser,
     sessions,
+    monitors,
     queues,
     jobDeps,
     extraction,

@@ -94,6 +94,21 @@ describe('the official @mendable/firecrawl-js SDK against IceCrawl', () => {
     expect(formats.find((f) => f.format === 'pdf')?.available).toBe(true);
   });
 
+  it('monitors can be created, run, inspected and deleted', async () => {
+    const m = await app.createMonitor({ name: 'watch', schedule: { cron: '0 * * * *' }, targets: [{ type: 'scrape', urls: [`${E}/a`] }] });
+    expect(m).toMatchObject({ name: 'watch', status: 'active' });
+    expect((await app.listMonitors()).map((x) => x.id)).toContain(m.id);
+    const renamed = await app.updateMonitor(m.id, { name: 'renamed' });
+    expect(renamed.name).toBe('renamed');
+    const check = await app.runMonitor(m.id);
+    await drain(t.deps, t.queues);
+    const detail = await app.getMonitorCheck(m.id, check.id);
+    expect(detail.status).toBe('completed');
+    expect(detail.pages?.[0]).toMatchObject({ url: `${E}/a`, status: 'new' });
+    expect((await app.listMonitorChecks(m.id)).length).toBeGreaterThan(0);
+    expect(await app.deleteMonitor(m.id)).toBe(true);
+  });
+
   it('agent starts, polls and returns the answer', async () => {
     const r = await whileQueued(app.agent({ prompt: 'Find a fact', urls: [`${E}/a`], schema: { type: 'object', properties: { fact: { type: 'string' } } }, pollInterval: 1, timeout: 30 }));
     expect(r.status).toBe('completed');

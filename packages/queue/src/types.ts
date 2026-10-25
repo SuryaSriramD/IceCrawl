@@ -21,7 +21,12 @@ export interface AgentJobData {
   jobId: string;
 }
 
-export type ScrapeJobData = PageJobData | DiscoverJobData | ExtractJobData | AgentJobData;
+export interface MonitorJobData {
+  kind: 'monitor';
+  checkId: string;
+}
+
+export type ScrapeJobData = PageJobData | DiscoverJobData | ExtractJobData | AgentJobData | MonitorJobData;
 
 export interface WebhookJobData {
   jobId: string;
@@ -38,6 +43,7 @@ export interface JobQueues {
   addDiscover(jobId: string): Promise<void>;
   addExtract(jobId: string): Promise<void>;
   addAgent(jobId: string): Promise<void>;
+  addMonitor(checkId: string): Promise<void>;
   addWebhook(data: WebhookJobData): Promise<void>;
   /** Returns the URLs not seen before for this job, in input order. */
   markSeen(jobId: string, urls: string[]): Promise<string[]>;

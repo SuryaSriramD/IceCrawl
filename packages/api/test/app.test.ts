@@ -171,18 +171,7 @@ describe('persistence and retrieval', () => {
   });
 });
 
-describe('planned endpoints', () => {
-  it.each([['monitor', 9]])(
-    '/v2/%s answers 501 naming phase %i',
-    async (path, phase) => {
-      const { app, auth } = await makeApp();
-      const res = await app.inject({ method: 'POST', url: `/v2/${path}`, headers: auth, payload: {} });
-      expect(res.statusCode).toBe(501);
-      expect(res.json()).toMatchObject({ success: false, code: 'NOT_IMPLEMENTED' });
-      expect(res.json().error).toContain(`phase ${phase}`);
-    },
-  );
-
+describe('unknown routes', () => {
   it('answers 404 for anything else', async () => {
     const { app, auth } = await makeApp();
     const res = await app.inject({ method: 'GET', url: '/v2/nothing-here', headers: auth });

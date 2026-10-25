@@ -8,7 +8,9 @@ import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
 import { registerAgentRoutes } from './routes/agent';
 import { registerInteractRoutes } from './routes/interact';
+import { registerMonitorRoutes } from './routes/monitor';
 import { registerParseRoutes } from './routes/parse';
+import type { MonitorStore } from './monitor/types';
 import { registerExtractRoutes } from './routes/extract';
 import { registerSearchRoute } from './routes/search';
 import { registerTeamRoutes } from './routes/team';
@@ -32,6 +34,9 @@ export interface AppDeps {
   maxUploadBytes?: number;
   /** Browser sessions behind /v2/interact; omit when the browser engine is off. */
   sessions?: SessionManager | null;
+  monitors?: MonitorStore | null;
+  /** Shortest time between two scheduled monitor runs (default 15). */
+  monitorMinIntervalMinutes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
   rateLimiter?: RateLimiter | null;
   team?: { workerConcurrency?: number };
@@ -49,7 +54,6 @@ declare module 'fastify' {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PLANNED: Record<string, number> = {
-  monitor: 9,
 };
 
 function errorHandler(err: unknown, _req: FastifyRequest, reply: FastifyReply) {
@@ -126,6 +130,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerParseRoutes(v2, deps);
       registerInteractRoutes(v2, deps);
       registerAgentRoutes(v2, deps);
+      registerMonitorRoutes(v2, { monitors: deps.monitors, queues: deps.jobs?.queues, useAuth: deps.useAuth, allowPrivateNetworks: deps.jobs?.allowPrivateNetworks, monitorMinIntervalMinutes: deps.monitorMinIntervalMinutes });
       registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {

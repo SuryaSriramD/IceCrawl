@@ -17,11 +17,11 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
   const v = loadResponseValidator();
   const setup = () => makeJobsApp({ site, files, search: fakeSearch({ web: [webHit(`${E}/a`)] }), extraction: extractionDeps(fakeLlm(JSON.stringify({ fact: SENTENCE }))) });
   type T = Awaited<ReturnType<typeof setup>>;
-  const call = async (t: T, method: 'GET' | 'POST' | 'DELETE', url: string, payload?: unknown) => {
+  const call = async (t: T, method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: unknown) => {
     const res = await t.app.inject({ method, url, headers: t.auth, payload: payload as never });
     return { status: res.statusCode, body: res.json() };
   };
-  const check = (path: string, method: 'get' | 'post' | 'delete', r: { status: number; body: unknown }) => {
+  const check = (path: string, method: 'get' | 'post' | 'patch' | 'delete', r: { status: number; body: unknown }) => {
     const label = `${method.toUpperCase()} ${path} -> ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`;
     // Firecrawl's own spec contradicts itself here (it requires `data`, defines `crawls`): check what it does define.
     if (path === '/crawl/active') {
@@ -103,6 +103,22 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
     check('/parse', 'post', await send('table.csv', `name,qty\n${rows}`));
     check('/parse', 'post', await send('table.exe', 'MZ'));
     check('/parse/formats', 'get', await call(t, 'GET', '/v2/parse/formats'));
+  });
+
+  it('monitor', async () => {
+    const t = await setup();
+    const created = await call(t, 'POST', '/v2/monitor', { name: 'm', schedule: { cron: '0 * * * *' }, targets: [{ type: 'scrape', urls: [`${E}/a`] }] });
+    check('/monitor', 'post', created);
+    const id = (created.body as { data: { id: string } }).data.id;
+    check('/monitor', 'get', await call(t, 'GET', '/v2/monitor'));
+    check('/monitor/{monitorId}', 'get', await call(t, 'GET', `/v2/monitor/${id}`));
+    check('/monitor/{monitorId}', 'patch', await call(t, 'PATCH', `/v2/monitor/${id}`, { name: 'renamed' }));
+    const started = await call(t, 'POST', `/v2/monitor/${id}/run`);
+    check('/monitor/{monitorId}/run', 'post', started);
+    await drain(t.deps, t.queues);
+    check('/monitor/{monitorId}/checks', 'get', await call(t, 'GET', `/v2/monitor/${id}/checks`));
+    check('/monitor/{monitorId}/checks/{checkId}', 'get', await call(t, 'GET', `/v2/monitor/${id}/checks/${(started.body as { id: string }).id}`));
+    check('/monitor/{monitorId}', 'delete', await call(t, 'DELETE', `/v2/monitor/${id}`));
   });
 
   it('agent', async () => {

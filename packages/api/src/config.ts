@@ -97,6 +97,8 @@ export interface AppConfig {
   /** Whether POST /v2/interact/{id}/execute may run code (node only). Off unless the operator turns it on. */
   interactCode: boolean;
   interactMaxSessions: number;
+  monitorMinIntervalMinutes: number;
+  monitorMaxPages: number;
   /** Operator proxy pools (http(s) URLs); empty when not configured. */
   proxiesEnhanced: string[];
   proxiesStealth: string[];
@@ -146,6 +148,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     maxUploadBytes: positiveInt(env, 'ICECRAWL_MAX_UPLOAD_BYTES', 50 * 1024 * 1024),
     interactCode: env.ICECRAWL_INTERACT_CODE === 'true',
     interactMaxSessions: positiveInt(env, 'ICECRAWL_INTERACT_MAX_SESSIONS', 5),
+    monitorMinIntervalMinutes: positiveInt(env, 'ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES', 15),
+    monitorMaxPages: positiveInt(env, 'ICECRAWL_MONITOR_MAX_PAGES', 50),
     proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),

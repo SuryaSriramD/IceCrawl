@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Monitors: `/v2/monitor` CRUD, runs, checks and per-page change reports with diffs, cron schedules, webhooks. Blocked pages are errors, never changes. See docs/monitor.md.
+
 - MCP: `agent`, `check_agent_status` and `list_interact_sessions` tools (14 in total). Code execution in interact sessions is deliberately not exposed.
 
 - Agent: `POST/GET /v2/agent`, `GET/DELETE /v2/agent/{id}`, trace and snapshots. A search/read/answer loop on your own model, with every page read through the trust pipeline. SDK `agent()`. See docs/agent.md.

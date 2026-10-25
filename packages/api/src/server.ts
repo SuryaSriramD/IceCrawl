@@ -1,6 +1,7 @@
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { startReaper } from './jobs/reaper';
+import { startMonitorScheduler } from './monitor/scheduler';
 import { startJobWorkers } from './jobs/runner';
 import { createRuntime } from './runtime';
 
@@ -20,6 +21,8 @@ const app = buildApp({
   searchMaxScrape: config.searchMaxScrape,
   maxUploadBytes: config.maxUploadBytes,
   sessions: rt.sessions,
+  monitors: rt.monitors,
+  monitorMinIntervalMinutes: config.monitorMinIntervalMinutes,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },
   ready: () => rt.ready(),
@@ -38,7 +41,10 @@ const app = buildApp({
 const workers = config.runWorker ? startJobWorkers(rt.queues, rt.jobDeps, rt.delivery, { concurrency: config.workerConcurrency }) : null;
 const stopReaper = startReaper(rt.store, { maxRuntimeMs: config.jobMaxRuntimeHours * 3_600_000 });
 
+const stopScheduler = config.runWorker ? startMonitorScheduler({ monitors: rt.monitors, queues: rt.queues }) : () => undefined;
+
 const shutdown = async () => {
+  stopScheduler();
   stopReaper();
   await app.close();
   await workers?.close();

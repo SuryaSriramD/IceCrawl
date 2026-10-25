@@ -16,6 +16,8 @@ import type { ScraperConfig } from '@icecrawl/scraper';
 import type { PrivateSigningKey } from '@icecrawl/trust';
 import { scrapeAndPersist, type ExtractionDeps } from '../scrape-service';
 import type { JobRecord, SnapshotStore, Store } from '../store/types';
+import { processMonitorCheck, type MonitorRunDeps } from '../monitor/runner';
+import type { MonitorStore } from '../monitor/types';
 import { processAgentJob } from './agent';
 import { processExtractJob } from './extract';
 import { sendWebhook } from './webhooks';
@@ -36,6 +38,8 @@ export interface JobDeps {
   extraction?: ExtractionDeps;
   search?: SearchProvider | null;
   extractMaxPages?: number;
+  monitors?: MonitorStore;
+  monitorMaxPages?: number;
 }
 
 const DEFAULT_UA = 'IceCrawl';
@@ -52,6 +56,10 @@ export async function processScrapeJob(
   data: ScrapeJobData,
   ctx: JobContext,
 ): Promise<{ delayMs?: number }> {
+  if (data.kind === 'monitor') {
+    if (deps.monitors) await processMonitorCheck(deps as MonitorRunDeps, data.checkId);
+    return {};
+  }
   const job = await deps.store.getJob(data.jobId);
   if (!job || job.status !== 'scraping') return {};
   if (data.kind === 'agent') {

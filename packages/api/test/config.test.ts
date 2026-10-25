@@ -71,6 +71,16 @@ describe('loadConfig operations settings', () => {
   });
 });
 
+describe('loadConfig monitors', () => {
+  it('has a 15 minute floor and 50 pages per check by default, and rejects bad values', () => {
+    const c = loadConfig({});
+    expect(c.monitorMinIntervalMinutes).toBe(15);
+    expect(c.monitorMaxPages).toBe(50);
+    expect(loadConfig({ ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES: '5' }).monitorMinIntervalMinutes).toBe(5);
+    expect(() => loadConfig({ ICECRAWL_MONITOR_MAX_PAGES: '0' })).toThrow(/ICECRAWL_MONITOR_MAX_PAGES/);
+  });
+});
+
 describe('loadConfig files and proxies', () => {
   it('has no proxies and a 50 MiB upload limit by default', () => {
     const c = loadConfig({});

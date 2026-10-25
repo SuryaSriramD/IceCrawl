@@ -35,6 +35,55 @@ export interface InteractResult {
   error: string | null;
 }
 
+export interface MonitorRequest {
+  name: string;
+  schedule: { cron: string; timezone?: string };
+  targets: Array<Record<string, unknown>>;
+  webhook?: { url: string; headers?: Record<string, string>; metadata?: Record<string, unknown>; events?: Array<'monitor.page' | 'monitor.check.completed'> };
+  retentionDays?: number;
+}
+
+export interface MonitorSummary {
+  totalPages: number;
+  same: number;
+  changed: number;
+  new: number;
+  removed: number;
+  error: number;
+}
+
+export interface Monitor {
+  id: string;
+  name: string;
+  status: 'active' | 'paused';
+  schedule: { cron: string; timezone: string };
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  currentCheckId: string | null;
+  targets: Array<Record<string, unknown>>;
+  lastCheckSummary?: MonitorSummary;
+}
+
+export interface MonitorPage {
+  id: string;
+  url: string;
+  status: 'same' | 'new' | 'changed' | 'removed' | 'error';
+  previousScrapeId: string | null;
+  currentScrapeId: string | null;
+  error: string | null;
+  diff: { text: string } | null;
+}
+
+export interface MonitorCheck {
+  id: string;
+  monitorId: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'partial' | 'skipped_overlap' | 'skipped_no_credits';
+  trigger: 'scheduled' | 'manual';
+  summary?: MonitorSummary;
+  error: string | null;
+  pages?: MonitorPage[];
+}
+
 export interface AgentOptions {
   urls?: string[];
   schema?: Record<string, unknown>;
@@ -96,6 +145,11 @@ export class IceCrawlApiError extends Error {
     this.name = 'IceCrawlApiError';
   }
 }
+
+const query = (o: Record<string, unknown>): string => {
+  const q = new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+  return q.size > 0 ? `?${q}` : '';
+};
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -173,6 +227,32 @@ export class IceCrawl {
   }
   async getParseFormats(): Promise<ParseFormat[]> {
     return (await this.json<{ data: { formats: ParseFormat[] } }>('GET', '/v2/parse/formats')).data.formats;
+  }
+
+  async createMonitor(request: MonitorRequest): Promise<Monitor> {
+    return (await this.json<{ data: Monitor }>('POST', '/v2/monitor', request)).data;
+  }
+  async listMonitors(o: { limit?: number; offset?: number } = {}): Promise<Monitor[]> {
+    return (await this.json<{ data: Monitor[] }>('GET', `/v2/monitor${query(o)}`)).data;
+  }
+  async getMonitor(id: string): Promise<Monitor> {
+    return (await this.json<{ data: Monitor }>('GET', `/v2/monitor/${id}`)).data;
+  }
+  async updateMonitor(id: string, patch: Partial<MonitorRequest> & { status?: 'active' | 'paused' }): Promise<Monitor> {
+    return (await this.json<{ data: Monitor }>('PATCH', `/v2/monitor/${id}`, patch)).data;
+  }
+  async deleteMonitor(id: string): Promise<void> {
+    await this.json('DELETE', `/v2/monitor/${id}`);
+  }
+  /** Starts a check now; poll `getMonitorCheck` for the result. */
+  async runMonitor(id: string): Promise<MonitorCheck> {
+    return (await this.json<{ data: MonitorCheck }>('POST', `/v2/monitor/${id}/run`)).data;
+  }
+  async listMonitorChecks(id: string, o: { limit?: number; offset?: number; status?: string } = {}): Promise<MonitorCheck[]> {
+    return (await this.json<{ data: MonitorCheck[] }>('GET', `/v2/monitor/${id}/checks${query(o)}`)).data;
+  }
+  async getMonitorCheck(id: string, checkId: string, o: { limit?: number; skip?: number; status?: string } = {}): Promise<MonitorCheck> {
+    return (await this.json<{ data: MonitorCheck }>('GET', `/v2/monitor/${id}/checks/${checkId}${query(o)}`)).data;
   }
 
   startAgent(prompt: string, options: AgentOptions = {}): Promise<{ id: string; warning?: string }> {

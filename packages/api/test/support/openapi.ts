@@ -12,7 +12,7 @@ export const hasOpenApi = (): boolean => existsSync(openApiPath());
 
 export interface ResponseValidator {
   /** Errors for `body` against the documented response of `method path` with `status`; [] when it conforms. */
-  validate(path: string, method: 'get' | 'post' | 'delete', status: number, body: unknown): string[];
+  validate(path: string, method: 'get' | 'post' | 'patch' | 'delete', status: number, body: unknown): string[];
 }
 
 export function loadResponseValidator(): ResponseValidator {

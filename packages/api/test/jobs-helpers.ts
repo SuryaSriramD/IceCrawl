@@ -9,6 +9,7 @@ import type { Fetcher } from '@icecrawl/crawler';
 import { MemoryQueues, type JobContext } from '@icecrawl/queue';
 import { processScrapeJob, type JobDeps } from '../src/jobs/processor';
 import { MemorySnapshotStore, MemoryStore } from '../src/store/memory';
+import { MemoryMonitorStore } from '../src/store/monitor-memory';
 import type { NewJob } from '../src/store/types';
 
 export const filler = 'Real readable sentence about a real topic that is long enough to be trusted. '.repeat(8);
@@ -66,6 +67,7 @@ export function makeJobDeps(over: Partial<JobDeps> & { site?: Site; files?: Para
     queues,
     fetcher: fakeFetcher(over.files ?? {}),
     allowIgnoreRobots: false,
+    monitors: new MemoryMonitorStore(),
     ...over,
   };
   return { deps, store: store as MemoryStore, queues, calls };
@@ -152,6 +154,7 @@ export async function makeJobsApp(
     ready: over.ready,
     logger: over.logger,
     useAuth: over.useAuth ?? true,
+    monitors: deps.monitors,
     map: { fetcher: deps.fetcher },
     jobs: {
       queues,

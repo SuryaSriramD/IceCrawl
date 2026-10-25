@@ -128,6 +128,10 @@ const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
 
 `/v2/interact` gives you a persistent browser you can script with node code (off by default; [docs/interact.md](docs/interact.md)). `/v2/agent` runs a research agent that searches and reads pages and returns an answer with a trace and the receipts of the pages it read ([docs/agent.md](docs/agent.md)).
 
+## Monitors
+
+`/v2/monitor` re-reads pages on a schedule and reports what is new, changed or gone, with diffs and receipt ids. A page that is blocked or behind a captcha is an error, never a change ([docs/monitor.md](docs/monitor.md)).
+
 ## Search
 
 `POST /v2/search` follows Firecrawl's v2 request and response (`query`, `limit`, `sources` web/news/images, `categories` developer/research/pdf, `tbs` day/week/month/year, `includeDomains` or `excludeDomains`, `safe`, `ignoreInvalidURLs`, `scrapeOptions`). It searches through a [SearXNG](https://docs.searxng.org/) instance that you run:
