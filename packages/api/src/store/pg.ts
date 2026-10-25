@@ -257,18 +257,20 @@ export class PgStore implements Store {
   async searchScrapes(apiKeyId: string | null, query: string, limit: number, urlPrefix?: string): Promise<IndexHit[]> {
     const prefix = urlPrefix ? `${urlPrefix.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
     const rows = await this.sql`
-      select * from (
-        select distinct on (s.final_url) s.id, s.final_url, s.created_at, s.metadata->>'title' as title,
-               ts_rank(to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)), q.q) as rank,
-               ts_headline('simple', left(s.markdown, 200000), q.q, 'MaxWords=40, MinWords=15, StartSel="", StopSel=""') as snippet
-        from scrapes s, websearch_to_tsquery('simple', ${query}) as q(q)
-        where s.api_key_id is not distinct from ${apiKeyId}
-          and (s.response->>'success') = 'true'
-          and to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)) @@ q.q
-          and (${prefix}::text is null or s.final_url like ${prefix}::text)
-        order by s.final_url, s.created_at desc
-      ) latest
-      order by rank desc, created_at desc
+      select s.id, s.final_url, s.created_at, s.metadata->>'title' as title,
+             ts_rank(to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)), q.q) as rank,
+             ts_headline('simple', left(s.markdown, 200000), q.q, 'MaxWords=40, MinWords=15, StartSel="", StopSel=""') as snippet
+      from scrapes s, websearch_to_tsquery('simple', ${query}) as q(q)
+      where s.api_key_id is not distinct from ${apiKeyId}
+        and (s.response->>'success') = 'true'
+        and to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)) @@ q.q
+        and (${prefix}::text is null or s.final_url like ${prefix}::text)
+        -- only the newest successful copy of a URL is searchable, so a page that no longer says it is not found by it
+        and not exists (
+          select 1 from scrapes n
+          where n.api_key_id is not distinct from s.api_key_id and n.final_url = s.final_url
+            and n.created_at > s.created_at and (n.response->>'success') = 'true')
+      order by rank desc, s.created_at desc
       limit ${limit}`;
     return rows.map((r) => ({
       scrapeId: r.id,

@@ -191,6 +191,12 @@ export async function runAgent(deps: AgentDeps, input: AgentInput): Promise<Agen
       }
     } else if (m.action === 'finish') {
       const answer = m.answer;
+      if (answer === undefined || answer === null || answer === '') {
+        notes.push(`- Turn ${step}: finish needs an answer. Put the answer in "answer".`);
+        trace.emit('progress.reported', { phase: 'working', message: `Turn ${step} of ${input.maxSteps} done.` });
+        await flush();
+        continue;
+      }
       const data = input.schema ? answer : { answer };
       const problem = validate ? (typeof answer === 'object' && answer !== null && !Array.isArray(answer) ? validate(answer) : 'the answer must be a JSON object') : null;
       if (problem) {

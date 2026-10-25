@@ -36,6 +36,18 @@ describe('tables in markdown', () => {
   });
 });
 
+describe('tables in markdown: links and layout', () => {
+  const md = (html: string) => convertHtml(`<html><body>${html}</body></html>`, { url: 'https://example.com/', onlyMainContent: false, removeBase64Images: true }).markdown;
+  it('keeps links and emphasis inside data table cells', () => {
+    expect(md('<table><tr><th>name</th></tr><tr><td><a href="/x">Pricing</a> <b>now</b></td></tr></table>')).toBe('| name |\n| --- |\n| [Pricing](https://example.com/x) **now** |');
+  });
+  it('does not flatten layout tables into one row of text', () => {
+    const out = md('<table><tr><td><p>Left <a href="/a">link</a></p></td><td><div>Right</div></td></tr></table>');
+    expect(out).toContain('[link](https://example.com/a)');
+    expect(out).not.toContain('| --- |');
+  });
+});
+
 describe('documents through the pipeline', () => {
   it('scrapes an xlsx as markdown and replays it from the snapshot', async () => {
     const run = await scrape(xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'https://example.com/report.xlsx');

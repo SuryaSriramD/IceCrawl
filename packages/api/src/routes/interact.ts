@@ -96,10 +96,12 @@ export function registerInteractRoutes(v2: FastifyInstance, deps: InteractRouteD
   });
 
   v2.delete<{ Params: { id: string } }>('/scrape/:id/interact', async (req) => {
-    const sessionId = byScrape.get(req.params.id);
+    const rec = UUID.test(req.params.id) ? await deps.store.getScrape(req.params.id) : null;
+    if (!rec || (deps.useAuth && rec.apiKeyId !== req.apiKeyId)) throw new IceCrawlError('NOT_FOUND', 'Scrape not found');
+    const sessionId = byScrape.get(rec.id);
     if (!sessionId) throw new IceCrawlError('NOT_FOUND', 'This scrape has no interact session');
-    byScrape.delete(req.params.id);
     await manager().destroy(sessionId, owner(req.apiKeyId));
+    byScrape.delete(rec.id);
     return { success: true };
   });
 }

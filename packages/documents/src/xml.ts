@@ -14,7 +14,11 @@ const parser = new XMLParser({
 });
 
 /** Parses XML into an ordered tree. Documents that declare entities are refused (entity expansion bombs). */
+const MAX_XML_CHARS = 25_000_000;
+
 export function parseXml(text: string): XNode[] {
+  // the ordered tree is many times the size of the text: refuse parts that would exhaust memory
+  if (text.length > MAX_XML_CHARS) throw new DocumentError('TOO_LARGE', 'A part of the document is too large to read');
   if (/<!ENTITY/i.test(text)) throw new DocumentError('UNREADABLE', 'The document declares XML entities');
   try {
     return parser.parse(text) as XNode[];

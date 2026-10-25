@@ -1,6 +1,9 @@
 import { heading, page, paragraph } from './html';
 import { DocumentError, type ConvertedDocument, type DocumentLimits } from './types';
 
+/** Reading stops between pages once this much time has passed. */
+const PDF_TIME_BUDGET_MS = 60_000;
+
 interface Line {
   y: number;
   size: number;
@@ -66,7 +69,12 @@ export async function pdfToHtml(bytes: Uint8Array, limits: DocumentLimits): Prom
     const last = Math.min(total, limits.maxPages);
     if (total > last) warnings.push(`Only the first ${last} of ${total} pages were converted.`);
     const pages: Line[][] = [];
+    const deadline = Date.now() + PDF_TIME_BUDGET_MS;
     for (let n = 1; n <= last; n++) {
+      if (Date.now() > deadline) {
+        warnings.push(`Stopped after ${n - 1} pages: reading the PDF took too long.`);
+        break;
+      }
       const content = await (await doc.getPage(n)).getTextContent();
       pages.push(linesOf(content.items as Array<{ str: string; transform: number[]; height: number }>));
     }

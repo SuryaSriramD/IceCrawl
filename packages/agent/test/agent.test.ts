@@ -118,6 +118,13 @@ describe('runAgent', () => {
     expect(seen).toEqual([...seen].sort((a, b) => a - b));
   });
 
+  it('does not accept a finish without an answer', async () => {
+    const llm = scripted(['{"action":"finish"}', '{"action":"finish","answer":"Paris"}']);
+    const r = await runAgent(deps(llm), input);
+    expect(r).toMatchObject({ status: 'completed', data: { answer: 'Paris' } });
+    expect(llm.requests[1].user).toContain('finish needs an answer');
+  });
+
   it('survives unparseable model replies', async () => {
     const r = await runAgent(deps(scripted(['I will think about it', '{"action":"finish","answer":"ok"}'])), input);
     expect(r.status).toBe('completed');

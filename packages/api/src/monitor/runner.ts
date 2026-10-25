@@ -137,7 +137,9 @@ export async function processMonitorCheck(deps: MonitorRunDeps, checkId: string)
     for (const b of gone) {
       await record({ targetId: b.targetId, url: b.url, status: 'removed' satisfies PageStatus, previousScrapeId: b.scrapeId, currentScrapeId: null, statusCode: null, error: null, metadata: null, diff: null });
     }
-    await store.deleteBaselines(monitor.id, gone.map((b) => b.url));
+    // search results come and go by nature: forget the ones that dropped out (a result that returns later is new again)
+    const dropped = [...baselines.values()].filter((b) => !resolved.has(b.url) && !failedTargets.has(b.targetId) && monitor.targets.some((t) => t.id === b.targetId && t.type === 'search'));
+    await store.deleteBaselines(monitor.id, [...gone, ...dropped].map((b) => b.url));
   } catch (err) {
     fatal = err instanceof IceCrawlError ? err.message : 'The check failed unexpectedly.';
     if (!(err instanceof IceCrawlError)) console.error('[icecrawl] monitor check failed:', err);

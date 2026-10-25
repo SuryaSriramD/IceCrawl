@@ -48,6 +48,9 @@ describe('/v2/monitor', () => {
     const resumed = (await call(t, 'PATCH', `/${id}`, { status: 'active', schedule: { cron: '30 6 * * *', timezone: 'Europe/Berlin' } })).json();
     expect(resumed.data).toMatchObject({ status: 'active', schedule: { cron: '30 6 * * *', timezone: 'Europe/Berlin' } });
     expect(resumed.data.nextRunAt).toEqual(expect.any(String));
+    const zoneOnly = (await call(t, 'PATCH', `/${id}`, { schedule: { timezone: 'Asia/Tokyo' } })).json();
+    expect(zoneOnly.data.schedule).toEqual({ cron: '30 6 * * *', timezone: 'Asia/Tokyo' });
+    expect((await call(t, 'PATCH', `/${id}`, { schedule: { text: 'daily' } })).statusCode).toBe(400);
 
     expect((await call(t, 'DELETE', `/${id}`)).json()).toEqual({ success: true });
     expect((await call(t, 'GET', `/${id}`)).statusCode).toBe(404);
@@ -58,6 +61,8 @@ describe('/v2/monitor', () => {
     expect((await call(t, 'POST', '', { ...body, schedule: { text: 'every day' } })).json().error).toContain('cron');
     expect((await call(t, 'POST', '', { ...body, schedule: { cron: '* * * * *' } })).json().error).toContain('more often');
     expect((await call(t, 'POST', '', { ...body, schedule: { cron: 'nonsense' } })).statusCode).toBe(400);
+    // uneven gaps (10 and 50 minutes): the first two runs alone can look fine depending on when it is created
+    expect((await call(t, 'POST', '', { ...body, schedule: { cron: '0,10 * * * *' } })).json().error).toContain('more often');
     expect((await call(t, 'POST', '', { ...body, targets: [] })).statusCode).toBe(400);
     expect((await call(t, 'POST', '', { ...body, targets: [{ type: 'scrape', urls: ['http://127.0.0.1/admin'] }] })).json().code).toBe('SSRF_BLOCKED');
     expect((await call(t, 'POST', '', { ...body, webhook: { url: 'http://127.0.0.1/hook' } })).json().code).toBe('SSRF_BLOCKED');

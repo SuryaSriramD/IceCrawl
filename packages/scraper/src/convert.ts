@@ -31,9 +31,13 @@ turndown.remove(['script', 'style']);
 // turndown has no table support of its own; tables become GFM pipe tables (first row is the header)
 turndown.addRule('table', {
   filter: 'table',
-  replacement: (_content, node) => {
-    const cell = (c: Element) => (c.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
-    const rows = Array.from((node as Element).querySelectorAll('tr'))
+  replacement: (content, node) => {
+    const table = node as Element;
+    // tables used for page layout (nested tables, block content in cells) cannot be pipe tables: keep their content as it flows
+    if (table.querySelector('table table, td p, td ul, td ol, td div, td h1, td h2, td h3, td pre, td blockquote')) return `\n\n${content}\n\n`;
+    // cell content goes through turndown so links and emphasis survive
+    const cell = (c: Element) => turndown.turndown(c.innerHTML).replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+    const rows = Array.from(table.querySelectorAll('tr'))
       .map((tr) => Array.from(tr.children).filter((c) => /^T[DH]$/i.test(c.nodeName)).map(cell))
       .filter((r) => r.length > 0);
     if (rows.length === 0) return '';

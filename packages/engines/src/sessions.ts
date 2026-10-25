@@ -73,6 +73,8 @@ async function readDevToolsPort(dir: string): Promise<number> {
  */
 export class SessionManager {
   private readonly sessions = new Map<string, Session>();
+  /** Browsers being started: they count against the cap before they appear in `sessions`. */
+  private launching = 0;
   private proxy: Promise<EgressProxy> | null = null;
   private timer: NodeJS.Timeout | null = null;
   private readonly now: () => number;
@@ -92,10 +94,19 @@ export class SessionManager {
   }
 
   async create(o: { ownerKey: string; ttlMs: number; activityTtlMs?: number; url?: string }): Promise<SessionInfo> {
-    if (this.sessions.size >= (this.opts.maxSessions ?? 5)) {
+    if (this.sessions.size + this.launching >= (this.opts.maxSessions ?? 5)) {
       throw new IceCrawlError('RATE_LIMITED', `The server allows ${this.opts.maxSessions ?? 5} interact sessions at once; delete one first.`);
     }
     if (o.url) assertUrlAllowed(o.url, this.opts.allowPrivateNetworks);
+    this.launching++;
+    try {
+      return await this.launch(o);
+    } finally {
+      this.launching--;
+    }
+  }
+
+  private async launch(o: { ownerKey: string; ttlMs: number; activityTtlMs?: number; url?: string }): Promise<SessionInfo> {
     this.proxy ??= startEgressProxy({ allowPrivate: this.opts.allowPrivateNetworks });
     const proxy = await this.proxy;
     const dir = await mkdtemp(join(tmpdir(), 'icecrawl-session-'));

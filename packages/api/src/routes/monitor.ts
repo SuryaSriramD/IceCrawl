@@ -189,7 +189,8 @@ export function registerMonitorRoutes(v2: FastifyInstance, deps: MonitorRouteDep
     const status = b.status ?? cur.status;
     if (b.status) patch.status = b.status;
     if (b.schedule) {
-      const s = validateSchedule({ timezone: cur.timezone, ...b.schedule }, minutes);
+      // a patch may change only the time zone: the stored cron fills in (unless the caller sent natural-language text, which is refused)
+      const s = validateSchedule({ cron: b.schedule.text ? undefined : cur.cron, timezone: cur.timezone, ...b.schedule }, minutes);
       patch.cron = s.cron;
       patch.timezone = s.timezone;
     }

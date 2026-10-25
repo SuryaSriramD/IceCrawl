@@ -27,8 +27,15 @@ export function validateSchedule(s: { cron?: string; text?: string; timezone?: s
   }
   if (s.cron.trim().split(/\s+/).length !== 5) throw new IceCrawlError('VALIDATION', 'schedule.cron must have 5 fields (minute hour day month weekday).');
   const first = it.next().toDate();
-  const second = it.next().toDate();
-  if (second.getTime() - first.getTime() < minIntervalMinutes * 60_000) {
+  // look at a day of runs, not just two: an irregular cron such as `0,20 * * * *` has uneven gaps
+  let closest = Infinity;
+  let prev = first;
+  for (let i = 0; i < 48 && it.hasNext(); i++) {
+    const next = it.next().toDate();
+    closest = Math.min(closest, next.getTime() - prev.getTime());
+    prev = next;
+  }
+  if (closest < minIntervalMinutes * 60_000) {
     throw new IceCrawlError('VALIDATION', `schedule.cron runs more often than every ${minIntervalMinutes} minutes, which this server does not allow (ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES).`);
   }
   return { cron: s.cron, timezone, first };

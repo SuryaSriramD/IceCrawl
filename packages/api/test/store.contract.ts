@@ -316,13 +316,16 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       const old = await save({ key: keyA, finalUrl: 'https://example.com/pricing', markdown: 'The plan costs ten dollars a month.', metadata: { title: 'Pricing' }, ...ok });
       const latest = await save({ key: keyA, finalUrl: 'https://example.com/pricing', markdown: 'The plan costs twelve dollars a month. Pricing pricing pricing.', metadata: { title: 'Pricing' }, ...ok });
       await save({ key: keyA, finalUrl: 'https://example.com/blog', markdown: 'A post that mentions pricing once and little else of use today.', ...ok });
+      // an older copy that matches must not be found once the newest copy no longer does
+      const rewritten = await save({ key: keyA, finalUrl: 'https://example.com/rewritten', markdown: 'Old text about pricing here.', ...ok });
+      await save({ key: keyA, finalUrl: 'https://example.com/rewritten', markdown: 'New text about something else entirely.', ...ok });
       await save({ key: keyA, finalUrl: 'https://example.com/walled', markdown: 'pricing behind a captcha', response: { success: false } });
       await save({ key: keyB, finalUrl: 'https://other.example/pricing', markdown: 'pricing of someone else', ...ok });
 
       const hits = await store.searchScrapes(keyA, 'pricing', 10);
       expect(hits.map((h) => h.url)).toEqual(['https://example.com/pricing', 'https://example.com/blog']);
       expect(hits[0]).toMatchObject({ scrapeId: latest, title: 'Pricing' });
-      expect(hits.some((h) => h.scrapeId === old)).toBe(false);
+      expect(hits.some((h) => h.scrapeId === old || h.scrapeId === rewritten)).toBe(false);
       expect(hits[0].snippet.toLowerCase()).toContain('pricing');
       expect((await store.searchScrapes(keyA, 'pricing', 1)).length).toBe(1);
       expect((await store.searchScrapes(keyA, 'pricing', 10, 'https://example.com/b')).map((h) => h.url)).toEqual(['https://example.com/blog']);

@@ -72,6 +72,14 @@ describe.skipIf(!hasBrowser)('SessionManager', () => {
     await sessions.destroy(a.id, 'k1');
   }, 90_000);
 
+  it('counts sessions that are still starting against the cap', async () => {
+    const capped = new SessionManager({ ...opts, allowCode: false, maxSessions: 2 });
+    const results = await Promise.allSettled([1, 2, 3, 4].map(() => capped.create({ ownerKey: 'k', ttlMs: 60_000 })));
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(2);
+    expect(results.filter((r) => r.status === 'rejected').every((r) => (r as PromiseRejectedResult).reason.code === 'RATE_LIMITED')).toBe(true);
+    await capped.close();
+  }, 60_000);
+
   it('refuses code when the operator has not enabled it', async () => {
     const off = new SessionManager({ ...opts, allowCode: false });
     const s = await off.create({ ownerKey: 'k1', ttlMs: 60_000 });
