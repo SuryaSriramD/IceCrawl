@@ -6,6 +6,14 @@ export interface LlmSettings {
   timeoutMs: number;
 }
 
+function nonNegativeInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a non-negative integer (got "${raw}")`);
+  return n;
+}
+
 function positiveInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   const raw = env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -73,6 +81,7 @@ export interface AppConfig {
   searxngUrl?: string;
   searchMaxScrape: number;
   extractMaxPages: number;
+  rateLimitPerMinute: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -111,5 +120,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     searxngUrl: loadSearxngUrl(env),
     searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
     extractMaxPages: positiveInt(env, 'ICECRAWL_EXTRACT_MAX_PAGES', 20),
+    rateLimitPerMinute: nonNegativeInt(env, 'ICECRAWL_RATE_LIMIT_PER_MINUTE', 0),
   };
 }

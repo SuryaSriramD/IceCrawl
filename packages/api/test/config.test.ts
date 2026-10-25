@@ -48,3 +48,12 @@ describe('loadConfig language model and search', () => {
     expect(() => loadConfig({ ICECRAWL_SEARXNG_URL: 'localhost:8080' })).toThrow(/ICECRAWL_SEARXNG_URL/);
   });
 });
+
+describe('loadConfig rate limit', () => {
+  it('is off by default and validated when set', () => {
+    expect(loadConfig({}).rateLimitPerMinute).toBe(0);
+    expect(loadConfig({ ICECRAWL_RATE_LIMIT_PER_MINUTE: '120' }).rateLimitPerMinute).toBe(120);
+    expect(() => loadConfig({ ICECRAWL_RATE_LIMIT_PER_MINUTE: '-1' })).toThrow(/ICECRAWL_RATE_LIMIT_PER_MINUTE/);
+    expect(() => loadConfig({ ICECRAWL_RATE_LIMIT_PER_MINUTE: 'many' })).toThrow(/ICECRAWL_RATE_LIMIT_PER_MINUTE/);
+  });
+});

@@ -75,6 +75,9 @@ importers:
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
+      ioredis:
+        specifier: ^5.10.1
+        version: 5.11.1
       playwright-core:
         specifier: ^1.64.1
         version: 1.64.1

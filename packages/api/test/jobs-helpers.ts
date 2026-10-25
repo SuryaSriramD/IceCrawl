@@ -3,6 +3,7 @@ import type { ScraperConfig } from '@icecrawl/scraper';
 import { buildApp } from '../src/app';
 import { randomUUID } from 'node:crypto';
 import { featureSet, type Engine, type SearchProvider } from '@icecrawl/engines';
+import type { RateLimiter } from '../src/ratelimit';
 import type { ExtractionDeps } from '../src/scrape-service';
 import type { Fetcher } from '@icecrawl/crawler';
 import { MemoryQueues, type JobContext } from '@icecrawl/queue';
@@ -127,7 +128,7 @@ export async function drain(deps: JobDeps, queues: MemoryQueues, o: { maxAttempt
 }
 
 export async function makeJobsApp(
-  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig>; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; extractMaxPages?: number } = {},
+  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig>; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; extractMaxPages?: number; rateLimiter?: RateLimiter | null } = {},
 ) {
   const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false,
     extraction: over.extraction,
@@ -146,6 +147,7 @@ export async function makeJobsApp(
     extraction: over.extraction,
     search: over.search,
     searchMaxScrape: over.searchMaxScrape,
+    rateLimiter: over.rateLimiter,
     useAuth: over.useAuth ?? true,
     map: { fetcher: deps.fetcher },
     jobs: {

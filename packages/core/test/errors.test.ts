@@ -9,6 +9,10 @@ describe('IceCrawlError', () => {
     expect(e.message).toBe('nope');
   });
 
+  it('answers rate limiting with 429', () => {
+    expect(new IceCrawlError('RATE_LIMITED', 'slow down').status).toBe(429);
+  });
+
   it('has statuses for the phase 5 codes', () => {
     expect(new IceCrawlError('LLM_NOT_CONFIGURED', 'x').status).toBe(501);
     expect(new IceCrawlError('SEARCH_NOT_CONFIGURED', 'x').status).toBe(501);

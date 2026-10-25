@@ -7,6 +7,7 @@ import type { AppConfig } from './config';
 import { makeFetcher } from './jobs/fetcher';
 import type { JobDeps } from './jobs/processor';
 import type { DeliveryDeps } from './jobs/webhooks';
+import { RedisRateLimiter, type RateLimiter } from './ratelimit';
 import type { ExtractionDeps } from './scrape-service';
 import { loadOrCreateSigningKey } from './signing';
 import { migrate } from './store/migrate';
@@ -27,6 +28,7 @@ export interface Runtime {
   delivery: DeliveryDeps;
   extraction: ExtractionDeps;
   search: SearchProvider | null;
+  rateLimiter: RateLimiter | null;
   close(): Promise<void>;
 }
 
@@ -85,6 +87,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     jobDeps,
     extraction,
     search,
+    rateLimiter: config.rateLimitPerMinute > 0 ? new RedisRateLimiter(queues.connection, config.queuePrefix, config.rateLimitPerMinute, 60_000) : null,
     delivery: { secret: webhookSecret, allowPrivate: config.allowPrivateNetworks },
     async close() {
       await queues.close();

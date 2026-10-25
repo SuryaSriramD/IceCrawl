@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "ajv": "^8.17.1",
+    "ioredis": "^5.10.1",
     "@icecrawl/cli": "workspace:*",
     "@icecrawl/mcp": "workspace:*",
     "@icecrawl/sdk": "workspace:*",

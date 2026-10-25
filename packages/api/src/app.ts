@@ -8,6 +8,7 @@ import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
 import { registerExtractRoutes } from './routes/extract';
 import { registerSearchRoute } from './routes/search';
+import type { RateLimiter } from './ratelimit';
 import { scrapeAndPersist, type ExtractionDeps } from './scrape-service';
 import { snapshotKey, type SnapshotStore, type Store } from './store/types';
 
@@ -23,6 +24,8 @@ export interface AppDeps {
   extraction?: ExtractionDeps;
   search?: SearchProvider | null;
   searchMaxScrape?: number;
+  /** Limits work-creating (POST) requests per API key; omit for no limit. */
+  rateLimiter?: RateLimiter | null;
 }
 
 declare module 'fastify' {
@@ -75,13 +78,23 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   app.register(
     async (v2) => {
-      v2.addHook('preHandler', async (req) => {
-        if (!deps.useAuth) return;
-        const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization ?? '');
-        if (!match) throw new IceCrawlError('UNAUTHORIZED', 'Missing bearer token');
-        const row = await deps.store.findApiKeyByHash(sha256Hex(match[1]));
-        if (!row || row.revoked) throw new IceCrawlError('UNAUTHORIZED', 'Invalid API key');
-        req.apiKeyId = row.id;
+      v2.addHook('preHandler', async (req, reply) => {
+        if (deps.useAuth) {
+          const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization ?? '');
+          if (!match) throw new IceCrawlError('UNAUTHORIZED', 'Missing bearer token');
+          const row = await deps.store.findApiKeyByHash(sha256Hex(match[1]));
+          if (!row || row.revoked) throw new IceCrawlError('UNAUTHORIZED', 'Invalid API key');
+          req.apiKeyId = row.id;
+        }
+        // Polling and reading are free; only requests that start work count against the limit.
+        if (deps.rateLimiter && req.method === 'POST') {
+          const r = await deps.rateLimiter.hit(req.apiKeyId ?? req.ip);
+          reply.header('x-ratelimit-limit', r.limit).header('x-ratelimit-remaining', r.remaining).header('x-ratelimit-reset', Math.ceil(r.resetMs / 1000));
+          if (!r.allowed) {
+            reply.header('retry-after', Math.max(1, Math.ceil(r.resetMs / 1000)));
+            throw new IceCrawlError('RATE_LIMITED', `Rate limit of ${r.limit} requests per minute exceeded. Retry in ${Math.max(1, Math.ceil(r.resetMs / 1000))} s.`);
+          }
+        }
       });
 
       v2.post('/scrape', async (req, reply) => {
