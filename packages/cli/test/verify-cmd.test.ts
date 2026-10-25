@@ -10,7 +10,7 @@ const html = Buffer.from('<html><body><article>' + 'Plenty of honest words for t
 const key = generateSigningKey();
 
 async function makeReceipt() {
-  const { renderBody } = await import('@icecrawl/scraper');
+  const { renderBody, CONVERTER } = await import('@icecrawl/scraper');
   const rendered = renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
   const receipt = buildReceipt({
     id: '22222222-2222-4222-8222-222222222222',
@@ -21,7 +21,7 @@ async function makeReceipt() {
     engineChain: [{ engine: 'fetch', verdict: 'ok', confidence: 0.9, reasons: [], durationMs: 3 }],
     htmlBytes: html,
     markdown: rendered.markdown,
-    converter: { name: 'icecrawl-convert', version: '1' },
+    converter: { name: CONVERTER.name, version: CONVERTER.version },
     contentType: 'text/html',
     screenshot: null,
     options: { onlyMainContent: true, skipTlsVerification: true, removeBase64Images: true },

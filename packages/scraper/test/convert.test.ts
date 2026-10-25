@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convertHtml } from '../src/convert';
+import { CONVERTER, convertHtml } from '../src/convert';
 
 const article = `<article><h1>The Big Story</h1>${'<p>This paragraph contains real reporting about an important subject. </p>'.repeat(12)}</article>`;
 const page = `<!doctype html><html lang="en"><head>
@@ -66,5 +66,43 @@ describe('convertHtml', () => {
     const c = convertHtml(html, opts);
     expect(c.markdown).toContain('# Example Domain');
     expect(c.markdown).toContain('illustrative examples');
+  });
+});
+
+describe('convertHtml: the page heading under onlyMainContent', () => {
+  const body = '<p>This paragraph contains real reporting about an important subject. </p>'.repeat(12);
+  const withTitle = (title: string, inner: string) => `<!doctype html><html><head><title>${title}</title></head><body>${inner}</body></html>`;
+  const o = { url: 'https://example.com/x', onlyMainContent: true, removeBase64Images: true };
+
+  it('keeps the page h1 as an h1 instead of letting Readability turn it into an h2', () => {
+    const c = convertHtml(withTitle('Example Title', `<nav><a href="/">Home</a></nav><article><h1>The Big Story</h1>${body}</article>`), o);
+    expect(c.markdown.startsWith('# The Big Story\n')).toBe(true);
+  });
+
+  it('puts back an h1 that repeats the page title', () => {
+    for (const title of ['The Big Story', 'The Big Story | Daily News']) {
+      const c = convertHtml(withTitle(title, `<nav><a href="/">Home</a></nav><article><h1>The Big Story</h1>${body}</article>`), o);
+      expect(c.markdown.startsWith('# The Big Story\n'), title).toBe(true);
+    }
+  });
+
+  it('does not turn a site-name heading outside the content into the page heading', () => {
+    const c = convertHtml(withTitle('A story - Daily News', `<header><h1>Daily News</h1></header><article><h2>A story</h2>${body}</article>`), o);
+    expect(c.markdown).not.toContain('# Daily News');
+  });
+
+  it('leaves everything else alone without onlyMainContent', () => {
+    const html = withTitle('The Big Story', `<article><h1>The Big Story</h1>${body}</article>`);
+    expect(convertHtml(html, { ...o, onlyMainContent: false }).markdown.startsWith('# The Big Story\n')).toBe(true);
+  });
+
+  it('escapes the heading it restores', () => {
+    const c = convertHtml(withTitle('Fish & Chips <b>', `<article><h1>Fish &amp; Chips &lt;b&gt;</h1>${body}</article>`), o);
+    expect(c.markdown.startsWith('# Fish & Chips <b>')).toBe(true);
+    expect(c.cleanHtml).not.toContain('<b>');
+  });
+
+  it('is version 2 of the converter, so receipts made before this change report their replay as skipped', () => {
+    expect(CONVERTER).toEqual({ name: 'icecrawl-convert', version: '2' });
   });
 });

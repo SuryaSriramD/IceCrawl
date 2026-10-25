@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { renderBody } from '@icecrawl/scraper';
+import { CONVERTER, renderBody } from '@icecrawl/scraper';
 import { buildReceipt, generateSigningKey, scanForInjection, signReceipt, summarizeScan } from '@icecrawl/trust';
 import { IceCrawl } from '@icecrawl/sdk';
 import { createIceCrawlMcpServer, SERVER_INSTRUCTIONS } from '../src/server';
@@ -246,7 +246,7 @@ describe('verify_receipt tool', () => {
       engineChain: [{ engine: 'fetch', verdict: 'ok', confidence: 0.9, reasons: [], durationMs: 2 }],
       htmlBytes: html,
       markdown: rendered.markdown,
-      converter: { name: 'icecrawl-convert', version: '1' },
+      converter: { name: CONVERTER.name, version: CONVERTER.version },
       contentType: 'text/html',
       screenshot: null,
       scan: summarizeScan(scanForInjection({ html: rendered.text, markdown: rendered.markdown })),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderBody } from '@icecrawl/scraper';
+import { CONVERTER, renderBody } from '@icecrawl/scraper';
 import { buildReceipt, generateSigningKey, scanForInjection, signReceipt, summarizeScan } from '@icecrawl/trust';
 import { IceCrawl } from '../src';
 import { verifyReceiptRemote } from '../src/verify';
@@ -21,7 +21,7 @@ function makeReceipt() {
     engineChain: [{ engine: 'fetch', verdict: 'ok', confidence: 0.9, reasons: [], durationMs: 3 }],
     htmlBytes: html,
     markdown: rendered.markdown,
-    converter: { name: 'icecrawl-convert', version: '1' },
+    converter: { name: CONVERTER.name, version: CONVERTER.version },
     contentType: 'text/html',
     screenshot: null,
     scan,
