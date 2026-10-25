@@ -2,7 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { IceCrawlError, type Action, type ScreenshotOptions } from '@icecrawl/core';
 import { startEgressProxy, type EgressProxy } from './egress-proxy';
 import { featureSet } from './flags';
-import { assertUrlAllowed } from './ssrf';
+import { assertHostPublic, assertUrlAllowed } from './ssrf';
 import type { ActionOutputs, Engine, EngineContext, EngineResult } from './types';
 
 export interface PlaywrightEngineOptions {
@@ -12,6 +12,13 @@ export interface PlaywrightEngineOptions {
 }
 
 export type PlaywrightEngine = Engine & { close(): Promise<void> };
+
+/** Removes the most common automation tells; run in every page of a stealth context before the page's own scripts. */
+const STEALTH_INIT_SCRIPT = `
+Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true });
+Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'], configurable: true });
+if (!window.chrome) window.chrome = { runtime: {} };
+`;
 
 const INSTALL_HINT = 'Chromium is not installed. Run: pnpm --filter @icecrawl/engines exec playwright-core install chromium';
 
@@ -141,7 +148,8 @@ export function createPlaywrightEngine(opts: PlaywrightEngineOptions = {}): Play
   };
 
   async function scrape(ctx: EngineContext): Promise<EngineResult> {
-    assertUrlAllowed(ctx.url, ctx.allowPrivateNetworks);
+    const target = assertUrlAllowed(ctx.url, ctx.allowPrivateNetworks);
+    if (ctx.proxy) await assertHostPublic(target, ctx.allowPrivateNetworks);
     await semaphore.acquire();
     let context: BrowserContext | undefined;
     let timer: NodeJS.Timeout | undefined;
@@ -150,13 +158,15 @@ export function createPlaywrightEngine(opts: PlaywrightEngineOptions = {}): Play
     let unsubscribe = () => {};
     try {
       const browser = await getBrowser();
-      const proxy = await getProxy(ctx.allowPrivateNetworks);
-      unsubscribe = proxy.onBlocked((host) => blockedHosts.push(host));
+      // A pool proxy replaces the SSRF egress proxy: the request leaves from the proxy's network (see docs/stealth.md).
+      const proxy = ctx.proxy ? null : await getProxy(ctx.allowPrivateNetworks);
+      if (proxy) unsubscribe = proxy.onBlocked((host) => blockedHosts.push(host));
 
       const chrome = browser.version();
       const userAgent = ctx.mobile
-        ? `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome} Mobile Safari/537.36 IceCrawl/0.1`
-        : `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome} Safari/537.36 IceCrawl/0.1`;
+        ? `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome} Mobile Safari/537.36${ctx.stealth ? '' : ' IceCrawl/0.1'}`
+        : `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome} Safari/537.36${ctx.stealth ? '' : ' IceCrawl/0.1'}`;
+      const upstream = ctx.proxy ? new URL(ctx.proxy) : null;
       context = await browser.newContext({
         ignoreHTTPSErrors: ctx.skipTlsVerification,
         userAgent,
@@ -166,8 +176,12 @@ export function createPlaywrightEngine(opts: PlaywrightEngineOptions = {}): Play
         extraHTTPHeaders: ctx.headers,
         serviceWorkers: 'block',
         acceptDownloads: false,
-        proxy: { server: proxy.url, bypass: '<-loopback>' },
+        ...(ctx.stealth ? { locale: 'en-US' } : {}),
+        proxy: upstream
+          ? { server: upstream.origin, username: decodeURIComponent(upstream.username), password: decodeURIComponent(upstream.password) }
+          : { server: proxy!.url, bypass: '<-loopback>' },
       });
+      if (ctx.stealth) await context.addInitScript(STEALTH_INIT_SCRIPT);
       const live = context;
       timer = setTimeout(() => {
         timedOut = true;
@@ -223,7 +237,7 @@ export function createPlaywrightEngine(opts: PlaywrightEngineOptions = {}): Play
   return {
     name: 'playwright',
     quality: opts.quality ?? 20,
-    features: featureSet(['actions', 'waitFor', 'screenshot', 'screenshot@fullScreen', 'mobile', 'skipTlsVerification']),
+    features: featureSet(['actions', 'waitFor', 'screenshot', 'screenshot@fullScreen', 'mobile', 'skipTlsVerification', 'stealthProxy']),
     maxReasonableTimeMs: 30_000,
     scrape,
     async close() {
