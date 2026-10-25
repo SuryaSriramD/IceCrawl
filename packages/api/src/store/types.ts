@@ -22,6 +22,16 @@ export interface ScrapeRecord {
   jobId?: string | null;
 }
 
+export interface IndexHit {
+  scrapeId: string;
+  url: string;
+  title: string | null;
+  /** A few words of the page around the match. Page text: untrusted. */
+  snippet: string;
+  score: number;
+  createdAt: string;
+}
+
 export interface SnapshotMeta {
   sha256: string;
   key: string;
@@ -137,6 +147,11 @@ export interface Store {
   usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage>;
   recentScrapes(apiKeyId: string | null, o: { limit: number; before?: string; endpoint?: string }): Promise<ActivityRow[]>;
   latestScrapeAt(apiKeyId: string | null): Promise<string | null>;
+  /**
+   * Full-text search over the pages this key has scraped successfully (blocked, empty and quarantined scrapes are not
+   * indexed). Only the latest copy of each URL is returned, best match first.
+   */
+  searchScrapes(apiKeyId: string | null, query: string, limit: number, urlPrefix?: string): Promise<IndexHit[]>;
   /** Throws when the database cannot be reached. */
   ping(): Promise<void>;
   close(): Promise<void>;

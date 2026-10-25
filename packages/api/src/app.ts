@@ -7,7 +7,9 @@ import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
 import { registerAgentRoutes } from './routes/agent';
+import { registerIndexRoutes } from './routes/index-search';
 import { registerInteractRoutes } from './routes/interact';
+import type { DataProvider } from './index-search/providers';
 import { registerMonitorRoutes } from './routes/monitor';
 import { registerParseRoutes } from './routes/parse';
 import type { MonitorStore } from './monitor/types';
@@ -35,6 +37,8 @@ export interface AppDeps {
   /** Browser sessions behind /v2/interact; omit when the browser engine is off. */
   sessions?: SessionManager | null;
   monitors?: MonitorStore | null;
+  /** External sources for POST /v2/index/search, besides the pages stored by scrapes. */
+  providers?: readonly DataProvider[];
   /** Shortest time between two scheduled monitor runs (default 15). */
   monitorMinIntervalMinutes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
@@ -130,6 +134,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerParseRoutes(v2, deps);
       registerInteractRoutes(v2, deps);
       registerAgentRoutes(v2, deps);
+      registerIndexRoutes(v2, { store: deps.store, providers: deps.providers, injection: deps.scraper.injection });
       registerMonitorRoutes(v2, { monitors: deps.monitors, queues: deps.jobs?.queues, useAuth: deps.useAuth, allowPrivateNetworks: deps.jobs?.allowPrivateNetworks, monitorMinIntervalMinutes: deps.monitorMinIntervalMinutes });
       registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 

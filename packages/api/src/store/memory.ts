@@ -1,7 +1,7 @@
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt } from '@icecrawl/core';
 import { randomUUID } from 'node:crypto';
 import { sha256Hex } from '@icecrawl/trust';
-import { snapshotKey, type ActivityRow, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type JobType, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
+import { snapshotKey, type ActivityRow, type IndexHit, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type JobType, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
 
 export class MemoryStore implements Store {
   private keys = new Map<string, { id: string; name: string; revoked: boolean }>();
@@ -196,6 +196,34 @@ export class MemoryStore implements Store {
       .map((s) => s.createdAt)
       .sort();
     return times.length > 0 ? times[times.length - 1] : null;
+  }
+  async searchScrapes(apiKeyId: string | null, query: string, limit: number, urlPrefix?: string): Promise<IndexHit[]> {
+    const tokens = query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    if (tokens.length === 0) return [];
+    const latest = new Map<string, ScrapeRecord>();
+    for (const s of this.scrapes.values()) {
+      if (s.apiKeyId !== apiKeyId || (s.response as { success?: boolean }).success !== true || !s.markdown) continue;
+      if (urlPrefix && !s.finalUrl.startsWith(urlPrefix)) continue;
+      const cur = latest.get(s.finalUrl);
+      if (!cur || cur.createdAt < s.createdAt) latest.set(s.finalUrl, s);
+    }
+    const hits: IndexHit[] = [];
+    for (const s of latest.values()) {
+      const text = s.markdown!.toLowerCase();
+      const counts = tokens.map((t) => text.split(t).length - 1);
+      if (counts.some((c) => c === 0)) continue;
+      const at = text.indexOf(tokens[0]);
+      const from = Math.max(0, at - 80);
+      hits.push({
+        scrapeId: s.id,
+        url: s.finalUrl,
+        title: (s.metadata as { title?: string | null }).title ?? null,
+        snippet: s.markdown!.slice(from, from + 240).replace(/\s+/g, ' ').trim(),
+        score: counts.reduce((a, b) => a + b, 0) / Math.max(1, text.length / 1000),
+        createdAt: s.createdAt,
+      });
+    }
+    return hits.sort((a, b) => b.score - a.score || b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
   }
   async ping(): Promise<void> {}
   async close(): Promise<void> {}

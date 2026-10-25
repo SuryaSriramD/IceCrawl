@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Index: `POST /v2/index/search` (full-text search over your stored scrapes, latest copy of each URL, with receipts) and `GET /v2/index/providers`; operator-defined HTTP data providers via `ICECRAWL_PROVIDERS_FILE`. SDK `searchIndex()`, MCP `search_index`. See docs/index.md.
+
 - Monitors: `/v2/monitor` CRUD, runs, checks and per-page change reports with diffs, cron schedules, webhooks. Blocked pages are errors, never changes. See docs/monitor.md.
 
 - MCP: `agent`, `check_agent_status` and `list_interact_sessions` tools (14 in total). Code execution in interact sessions is deliberately not exposed.

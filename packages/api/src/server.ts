@@ -22,6 +22,7 @@ const app = buildApp({
   maxUploadBytes: config.maxUploadBytes,
   sessions: rt.sessions,
   monitors: rt.monitors,
+  providers: rt.providers,
   monitorMinIntervalMinutes: config.monitorMinIntervalMinutes,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },

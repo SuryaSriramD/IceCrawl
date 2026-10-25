@@ -84,6 +84,18 @@ export interface MonitorCheck {
   pages?: MonitorPage[];
 }
 
+export interface IndexResult {
+  /** `scrapes` or the name of a provider. */
+  source: string;
+  title: string | null;
+  url: string;
+  snippet: string;
+  score?: number;
+  receiptId?: string;
+  createdAt?: string;
+  trust?: { snippetInjection?: { flagged: boolean; highest: string | null; count: number } };
+}
+
 export interface AgentOptions {
   urls?: string[];
   schema?: Record<string, unknown>;
@@ -227,6 +239,15 @@ export class IceCrawl {
   }
   async getParseFormats(): Promise<ParseFormat[]> {
     return (await this.json<{ data: { formats: ParseFormat[] } }>('GET', '/v2/parse/formats')).data.formats;
+  }
+
+  /** Full-text search over the pages this key has scraped, plus any configured data providers. */
+  async searchIndex(query: string, o: { limit?: number; sources?: string[]; urlPrefix?: string } = {}): Promise<{ results: IndexResult[]; warning?: string }> {
+    const r = await this.json<{ data: { results: IndexResult[] }; warning?: string }>('POST', '/v2/index/search', { ...o, query });
+    return { results: r.data.results, ...(r.warning ? { warning: r.warning } : {}) };
+  }
+  async getIndexProviders(): Promise<Array<{ name: string; description: string }>> {
+    return (await this.json<{ data: { providers: Array<{ name: string; description: string }> } }>('GET', '/v2/index/providers')).data.providers;
   }
 
   async createMonitor(request: MonitorRequest): Promise<Monitor> {

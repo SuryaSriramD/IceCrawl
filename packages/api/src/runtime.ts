@@ -5,6 +5,7 @@ import { BullQueues } from '@icecrawl/queue';
 import type { PrivateSigningKey } from '@icecrawl/trust';
 import type postgres from 'postgres';
 import type { AppConfig } from './config';
+import { loadProvidersFile, type DataProvider } from './index-search/providers';
 import type { MonitorStore } from './monitor/types';
 import { makeFetcher } from './jobs/fetcher';
 import type { JobDeps } from './jobs/processor';
@@ -28,6 +29,7 @@ export interface Runtime {
   browser: PlaywrightEngine | null;
   sessions: SessionManager | null;
   monitors: MonitorStore;
+  providers: DataProvider[];
   queues: BullQueues;
   jobDeps: JobDeps;
   delivery: DeliveryDeps;
@@ -74,6 +76,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     maxInputChars: config.llmMaxInputChars,
     maxOutputTokens: config.llmMaxOutputTokens,
   };
+  const providers = config.providersFile ? await loadProvidersFile(config.providersFile, { allowPrivateNetworks: config.allowPrivateNetworks }) : [];
   const search = config.searxngUrl ? createSearxngProvider({ baseUrl: config.searxngUrl }) : null;
   const jobDeps: JobDeps = {
     store,
@@ -100,6 +103,7 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     browser,
     sessions,
     monitors,
+    providers,
     queues,
     jobDeps,
     extraction,

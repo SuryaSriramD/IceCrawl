@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
-import type { ActivityRow, ApiKeyRow, JobError, JobRecord, JobStatus, JobType, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
+import type { ActivityRow, ApiKeyRow, IndexHit, JobError, JobRecord, JobStatus, JobType, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
 
 export function createSql(url: string): postgres.Sql {
   return postgres(url, { onnotice: () => {}, max: 10 });
@@ -252,6 +252,32 @@ export class PgStore implements Store {
     const [r] = await this.sql`
       select max(created_at) as t from scrapes where api_key_id is not distinct from ${apiKeyId} and (response->>'success') = 'true'`;
     return r?.t ? new Date(r.t).toISOString() : null;
+  }
+
+  async searchScrapes(apiKeyId: string | null, query: string, limit: number, urlPrefix?: string): Promise<IndexHit[]> {
+    const prefix = urlPrefix ? `${urlPrefix.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+    const rows = await this.sql`
+      select * from (
+        select distinct on (s.final_url) s.id, s.final_url, s.created_at, s.metadata->>'title' as title,
+               ts_rank(to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)), q.q) as rank,
+               ts_headline('simple', left(s.markdown, 200000), q.q, 'MaxWords=40, MinWords=15, StartSel="", StopSel=""') as snippet
+        from scrapes s, websearch_to_tsquery('simple', ${query}) as q(q)
+        where s.api_key_id is not distinct from ${apiKeyId}
+          and (s.response->>'success') = 'true'
+          and to_tsvector('simple', left(coalesce(s.markdown, ''), 200000)) @@ q.q
+          and (${prefix}::text is null or s.final_url like ${prefix}::text)
+        order by s.final_url, s.created_at desc
+      ) latest
+      order by rank desc, created_at desc
+      limit ${limit}`;
+    return rows.map((r) => ({
+      scrapeId: r.id,
+      url: r.final_url,
+      title: r.title,
+      snippet: String(r.snippet).replace(/\s+/g, ' ').trim(),
+      score: Number(r.rank),
+      createdAt: new Date(r.created_at).toISOString(),
+    }));
   }
 
   async ping(): Promise<void> {

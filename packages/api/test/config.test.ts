@@ -71,6 +71,13 @@ describe('loadConfig operations settings', () => {
   });
 });
 
+describe('loadConfig index providers', () => {
+  it('has no providers file unless configured', () => {
+    expect(loadConfig({}).providersFile).toBeUndefined();
+    expect(loadConfig({ ICECRAWL_PROVIDERS_FILE: './providers.json' }).providersFile).toBe('./providers.json');
+  });
+});
+
 describe('loadConfig monitors', () => {
   it('has a 15 minute floor and 50 pages per check by default, and rejects bad values', () => {
     const c = loadConfig({});

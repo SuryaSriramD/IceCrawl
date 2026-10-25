@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { featureSet, type Engine, type EngineResult, type SearchProvider, type SessionManager } from '@icecrawl/engines';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import { buildApp } from '../src/app';
+import type { DataProvider } from '../src/index-search/providers';
 import type { ExtractionDeps } from '../src/scrape-service';
 import { MemorySnapshotStore, MemoryStore } from '../src/store/memory';
 
@@ -28,7 +29,7 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
 }
 
 export async function makeApp(
-  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number; sessions?: SessionManager | null } = {},
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number; sessions?: SessionManager | null; providers?: readonly DataProvider[] } = {},
 ) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
@@ -46,6 +47,7 @@ export async function makeApp(
     searchMaxScrape: opts.searchMaxScrape,
     maxUploadBytes: opts.maxUploadBytes,
     sessions: opts.sessions,
+    providers: opts.providers,
   });
   return { app, store, snapshots, keyId, auth: { authorization: 'Bearer ic-test' } };
 }
