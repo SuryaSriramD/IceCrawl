@@ -5,3 +5,4 @@ export * from './ssrf';
 export * from './fetch';
 export * from './egress-proxy';
 export * from './playwright';
+export * from './search';
