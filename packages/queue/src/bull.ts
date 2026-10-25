@@ -41,6 +41,10 @@ export class BullQueues implements JobQueues {
     await this.scrapeQueue.add('extract', { kind: 'extract', jobId }, { attempts: 1, removeOnComplete: true, removeOnFail: 1000 });
   }
 
+  async addAgent(jobId: string): Promise<void> {
+    await this.scrapeQueue.add('agent', { kind: 'agent', jobId }, { attempts: 1, removeOnComplete: true, removeOnFail: 1000 });
+  }
+
   async addPages(items: Array<Omit<PageJobData, 'kind'>>): Promise<void> {
     if (items.length === 0) return;
     await this.scrapeQueue.addBulk(

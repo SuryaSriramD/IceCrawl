@@ -28,7 +28,7 @@ export interface SnapshotMeta {
   bytes: number;
 }
 
-export type JobType = 'crawl' | 'batch' | 'extract';
+export type JobType = 'crawl' | 'batch' | 'extract' | 'agent';
 export type JobStatus = 'scraping' | 'completed' | 'failed' | 'cancelled';
 
 export interface JobRecord {
@@ -129,6 +129,8 @@ export interface Store {
   listJobErrors(jobId: string): Promise<JobError[]>;
   listJobPages(jobId: string, skip: number, maxBytes: number): Promise<{ items: Record<string, unknown>[]; nextSkip: number | null }>;
   listActiveJobs(apiKeyId: string | null): Promise<JobRecord[]>;
+  /** The newest jobs of one type for an API key, newest first. */
+  listJobs(apiKeyId: string | null, type: JobType, limit: number): Promise<JobRecord[]>;
   deleteExpiredJobs(now: Date): Promise<number>;
   /** Marks jobs that are still running but were created before `olderThan` as failed (their worker is gone). */
   failStaleJobs(olderThan: Date): Promise<number>;

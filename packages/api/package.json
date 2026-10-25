@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fastify/multipart": "^10.1.6",
+    "@icecrawl/agent": "workspace:*",
     "@icecrawl/core": "workspace:*",
     "@icecrawl/crawler": "workspace:*",
     "@icecrawl/documents": "workspace:*",

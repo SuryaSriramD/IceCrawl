@@ -17,7 +17,7 @@ export interface JobsDeps {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PATHS: Record<JobType, string> = { crawl: 'crawl', batch: 'batch/scrape', extract: 'extract' };
+const PATHS: Record<JobType, string> = { crawl: 'crawl', batch: 'batch/scrape', extract: 'extract', agent: 'agent' };
 
 export function registerJobRoutes(v2: FastifyInstance, deps: { store: Store; useAuth: boolean; jobs?: JobsDeps }): void {
   const need = (): JobsDeps => {

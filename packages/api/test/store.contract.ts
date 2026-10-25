@@ -300,6 +300,21 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       expect((await store.listActiveJobs(keyB)).map((j) => j.id)).toEqual([other.id]);
     });
 
+    it('lists the newest jobs of one type for one key', async () => {
+      const keyA = randomUUID();
+      await store.createApiKey({ id: keyA, hash: `hash-${keyA}`, name: 'a' });
+      const first = newJob({ apiKeyId: keyA, type: 'agent' });
+      const second = newJob({ apiKeyId: keyA, type: 'agent' });
+      const crawl = newJob({ apiKeyId: keyA });
+      for (const j of [first, crawl, second]) {
+        await store.createJob(j);
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      expect((await store.listJobs(keyA, 'agent', 10)).map((j) => j.id)).toEqual([second.id, first.id]);
+      expect((await store.listJobs(keyA, 'agent', 1)).map((j) => j.id)).toEqual([second.id]);
+      expect(await store.listJobs(null, 'agent', 10)).toEqual([]);
+    });
+
     it('deletes expired jobs together with their pages and receipts', async () => {
       const old = newJob({ expiresAt: new Date(Date.now() - 1000) });
       const fresh = newJob();

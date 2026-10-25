@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
-import type { ActivityRow, ApiKeyRow, JobError, JobRecord, JobStatus, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
+import type { ActivityRow, ApiKeyRow, JobError, JobRecord, JobStatus, JobType, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
 
 export function createSql(url: string): postgres.Sql {
   return postgres(url, { onnotice: () => {}, max: 10 });
@@ -201,6 +201,12 @@ export class PgStore implements Store {
   async listActiveJobs(apiKeyId: string | null): Promise<JobRecord[]> {
     const rows = await this.sql`
       select * from jobs where status = 'scraping' and api_key_id is not distinct from ${apiKeyId} order by created_at`;
+    return rows.map(jobFromRow);
+  }
+
+  async listJobs(apiKeyId: string | null, type: JobType, limit: number): Promise<JobRecord[]> {
+    const rows = await this.sql`
+      select * from jobs where type = ${type} and api_key_id is not distinct from ${apiKeyId} order by created_at desc limit ${limit}`;
     return rows.map(jobFromRow);
   }
 

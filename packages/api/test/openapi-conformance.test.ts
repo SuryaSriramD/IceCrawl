@@ -34,7 +34,10 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
       expect(r.body, label).toMatchObject({ success: false, error: expect.any(String), code: expect.any(String) });
       return;
     }
-    expect(v.validate(path, method, r.status, r.body), label).toEqual([]);
+    // The trace spec marks `error` as nullable but wraps it in allOf, which a strict validator reads as non-null;
+    // Firecrawl's own succeeded events carry null, so that one complaint is not a mismatch.
+    const problems = v.validate(path, method, r.status, r.body).filter((m) => !(path === '/agent/{jobId}/trace' && /^\/events\/\d+\/error must be object$/.test(m)));
+    expect(problems, label).toEqual([]);
   };
 
   it('scrape: success and failure', async () => {
@@ -100,6 +103,27 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
     check('/parse', 'post', await send('table.csv', `name,qty\n${rows}`));
     check('/parse', 'post', await send('table.exe', 'MZ'));
     check('/parse/formats', 'get', await call(t, 'GET', '/v2/parse/formats'));
+  });
+
+  it('agent', async () => {
+    const llm = fakeLlm(
+      JSON.stringify({ action: 'scrape', url: `${E}/a` }),
+      JSON.stringify({ action: 'finish', answer: { fact: SENTENCE } }),
+    );
+    const t = await makeJobsApp({ site, files, extraction: extractionDeps(llm) });
+    const start = await call(t, 'POST', '/v2/agent', { prompt: 'Find a fact', urls: [`${E}/a`] });
+    check('/agent', 'post', start);
+    const id = (start.body as { id: string }).id;
+    check('/agent/{jobId}', 'get', await call(t, 'GET', `/v2/agent/${id}`));
+    await drain(t.deps, t.queues);
+    const done = await call(t, 'GET', `/v2/agent/${id}`);
+    check('/agent/{jobId}', 'get', done);
+    check('/agent', 'get', await call(t, 'GET', '/v2/agent'));
+    check('/agent/{jobId}/trace', 'get', await call(t, 'GET', `/v2/agent/${id}/trace`));
+    const job = await t.store.getJob(id);
+    const [snapshotId] = Object.keys((job?.result as { snapshots: Record<string, string> }).snapshots);
+    check('/agent/{jobId}/snapshots/{snapshotId}', 'get', await call(t, 'GET', `/v2/agent/${id}/snapshots/${snapshotId}`));
+    check('/agent/{jobId}', 'delete', await call(t, 'DELETE', `/v2/agent/${id}`));
   });
 
   it('extract', async () => {

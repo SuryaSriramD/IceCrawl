@@ -13,6 +13,9 @@ export class MemoryQueues implements JobQueues {
   async addExtract(jobId: string): Promise<void> {
     this.jobs.push({ kind: 'extract', jobId });
   }
+  async addAgent(jobId: string): Promise<void> {
+    this.jobs.push({ kind: 'agent', jobId });
+  }
   async addDiscover(jobId: string): Promise<void> {
     this.jobs.push({ kind: 'discover', jobId });
   }

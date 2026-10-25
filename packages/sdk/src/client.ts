@@ -35,6 +35,24 @@ export interface InteractResult {
   error: string | null;
 }
 
+export interface AgentOptions {
+  urls?: string[];
+  schema?: Record<string, unknown>;
+  strictConstrainToURLs?: boolean;
+  effort?: 'low' | 'medium' | 'high';
+}
+
+export interface AgentStatus {
+  success: boolean;
+  status: 'processing' | 'completed' | 'failed';
+  expiresAt?: string;
+  data?: Record<string, unknown>;
+  sources?: Array<{ url: string; receiptId: string }>;
+  tokensUsed?: number;
+  error?: string;
+  code?: string;
+}
+
 /** A file to parse with `IceCrawl.parse`. */
 export interface ParseFile {
   name: string;
@@ -155,6 +173,35 @@ export class IceCrawl {
   }
   async getParseFormats(): Promise<ParseFormat[]> {
     return (await this.json<{ data: { formats: ParseFormat[] } }>('GET', '/v2/parse/formats')).data.formats;
+  }
+
+  startAgent(prompt: string, options: AgentOptions = {}): Promise<{ id: string; warning?: string }> {
+    return this.json('POST', '/v2/agent', { ...options, prompt });
+  }
+  /** Failed and cancelled runs are returned as data (`status: 'failed'`, `error`, `code`), not thrown. */
+  getAgentStatus(id: string): Promise<AgentStatus> {
+    return this.json('GET', `/v2/agent/${id}`);
+  }
+  /** The recorded steps of a run (searches, page reads, reasoning summaries), available while it runs. */
+  async getAgentTrace(id: string): Promise<Array<Record<string, unknown>>> {
+    return (await this.json<{ events: Array<Record<string, unknown>> }>('GET', `/v2/agent/${id}/trace`)).events;
+  }
+  async cancelAgent(id: string): Promise<void> {
+    await this.json('DELETE', `/v2/agent/${id}`);
+  }
+  /** Starts a run and waits for it. Throws `IceCrawlApiError` with the run's code if it fails. */
+  async agent(prompt: string, options: AgentOptions = {}, wait: WaitOptions = {}): Promise<AgentStatus> {
+    const { id } = await this.startAgent(prompt, options);
+    const interval = wait.pollIntervalMs ?? 2000;
+    const limit = wait.timeoutMs ?? 600_000;
+    const deadline = Date.now() + limit;
+    for (;;) {
+      const s = await this.getAgentStatus(id);
+      if (s.status === 'completed') return s;
+      if (s.status === 'failed') throw new IceCrawlApiError(422, s.code ?? 'EXTRACTION_FAILED', s.error ?? 'The agent run failed.');
+      if (Date.now() > deadline) throw new IceCrawlApiError(408, 'WAIT_TIMEOUT', `The agent run was still going after ${limit} ms (id ${id})`);
+      await sleep(interval);
+    }
   }
 
   /** Opens a browser session. Running code in it needs ICECRAWL_INTERACT_CODE=true on the server (docs/interact.md). */

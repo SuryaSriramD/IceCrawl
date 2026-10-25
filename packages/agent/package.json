@@ -1,0 +1,11 @@
+{
+  "name": "@icecrawl/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@icecrawl/core": "workspace:*",
+    "@icecrawl/extract": "workspace:*"
+  }
+}

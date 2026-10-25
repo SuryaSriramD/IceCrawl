@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import Firecrawl from '@mendable/firecrawl-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drain, makeJobsApp, pageHtml } from './jobs-helpers';
-import { extractionDeps, fakeLlm } from './llm-helpers';
+import { extractionDeps } from './llm-helpers';
 import { fakeSearch, webHit } from './search-helpers';
 
 const E = 'https://example.com';
@@ -15,6 +15,16 @@ const site = {
 };
 const files = { [`${E}/robots.txt`]: { status: 404, body: '' } };
 
+// answers extraction requests with the data and agent requests with a finishing action
+const bothModes = {
+  provider: 'fake',
+  model: 'fake-1',
+  async complete(req: { system: string }) {
+    const text = req.system.includes('research agent') ? JSON.stringify({ action: 'finish', answer: { fact: SENTENCE } }) : JSON.stringify({ fact: SENTENCE });
+    return { text, inputTokens: 1, outputTokens: 1, truncated: false };
+  },
+};
+
 type T = Awaited<ReturnType<typeof makeJobsApp>>;
 
 describe('the official @mendable/firecrawl-js SDK against IceCrawl', () => {
@@ -26,7 +36,7 @@ describe('the official @mendable/firecrawl-js SDK against IceCrawl', () => {
       site,
       files,
       search: fakeSearch({ web: [webHit(`${E}/a`, 'Page A', 'About A')] }),
-      extraction: extractionDeps(fakeLlm(JSON.stringify({ fact: SENTENCE }))),
+      extraction: extractionDeps(bothModes),
     });
     await t.app.listen({ port: 0, host: '127.0.0.1' });
     const { port } = t.app.server.address() as AddressInfo;
@@ -82,6 +92,11 @@ describe('the official @mendable/firecrawl-js SDK against IceCrawl', () => {
     expect(doc.markdown).toContain('| name | qty |');
     const formats = await app.getParseFormats();
     expect(formats.find((f) => f.format === 'pdf')?.available).toBe(true);
+  });
+
+  it('agent starts, polls and returns the answer', async () => {
+    const r = await whileQueued(app.agent({ prompt: 'Find a fact', urls: [`${E}/a`], schema: { type: 'object', properties: { fact: { type: 'string' } } }, pollInterval: 1, timeout: 30 }));
+    expect(r.status).toBe('completed');
   });
 
   it('extract returns the extracted data', async () => {

@@ -1,7 +1,7 @@
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt } from '@icecrawl/core';
 import { randomUUID } from 'node:crypto';
 import { sha256Hex } from '@icecrawl/trust';
-import { snapshotKey, type ActivityRow, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
+import { snapshotKey, type ActivityRow, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type JobType, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
 
 export class MemoryStore implements Store {
   private keys = new Map<string, { id: string; name: string; revoked: boolean }>();
@@ -135,6 +135,13 @@ export class MemoryStore implements Store {
     return [...this.jobs.values()]
       .filter((j) => j.status === 'scraping' && j.apiKeyId === apiKeyId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((j) => structuredClone(j));
+  }
+  async listJobs(apiKeyId: string | null, type: JobType, limit: number): Promise<JobRecord[]> {
+    return [...this.jobs.values()]
+      .filter((j) => j.type === type && j.apiKeyId === apiKeyId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
       .map((j) => structuredClone(j));
   }
   async deleteExpiredJobs(now: Date): Promise<number> {

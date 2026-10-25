@@ -6,6 +6,7 @@ import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
+import { registerAgentRoutes } from './routes/agent';
 import { registerInteractRoutes } from './routes/interact';
 import { registerParseRoutes } from './routes/parse';
 import { registerExtractRoutes } from './routes/extract';
@@ -48,7 +49,6 @@ declare module 'fastify' {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PLANNED: Record<string, number> = {
-  agent: 8,
   monitor: 9,
 };
 
@@ -125,6 +125,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerExtractRoutes(v2, deps);
       registerParseRoutes(v2, deps);
       registerInteractRoutes(v2, deps);
+      registerAgentRoutes(v2, deps);
       registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {

@@ -27,11 +27,23 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/agent:
+    dependencies:
+      '@icecrawl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@icecrawl/extract':
+        specifier: workspace:*
+        version: link:../extract
+
   packages/api:
     dependencies:
       '@fastify/multipart':
         specifier: ^10.1.6
         version: 10.1.6
+      '@icecrawl/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@icecrawl/core':
         specifier: workspace:*
         version: link:../core

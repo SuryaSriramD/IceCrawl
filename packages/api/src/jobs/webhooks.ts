@@ -16,7 +16,7 @@ export interface WebhookPayload {
   error?: string;
 }
 
-const PREFIX = { crawl: 'crawl', batch: 'batch_scrape', extract: 'extract' } as const;
+const PREFIX = { crawl: 'crawl', batch: 'batch_scrape', extract: 'extract', agent: 'agent' } as const;
 
 /** Batch scrapes have no failed event; a failed batch is reported as completed with success false. */
 const effectiveEvent = (job: JobRecord, event: WebhookEvent): WebhookEvent =>
