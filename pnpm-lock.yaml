@@ -117,6 +117,9 @@ importers:
       '@icecrawl/core':
         specifier: workspace:*
         version: link:../core
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
 
   packages/mcp:
     dependencies:
