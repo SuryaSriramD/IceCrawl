@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from 'fastify';
 import { IceCrawlError, normalizeScrapeRequest, type SignedReceipt } from '@icecrawl/core';
 import type { Engine, SearchProvider } from '@icecrawl/engines';
 import type { ScraperConfig } from '@icecrawl/scraper';
@@ -28,6 +28,9 @@ export interface AppDeps {
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
   rateLimiter?: RateLimiter | null;
   team?: { workerConcurrency?: number };
+  /** Health of the dependencies behind /ready: each value is 'ok' or a short reason. */
+  ready?: () => Promise<Record<string, string>>;
+  logger?: FastifyServerOptions['logger'];
 }
 
 declare module 'fastify' {
@@ -58,7 +61,7 @@ function errorHandler(err: unknown, _req: FastifyRequest, reply: FastifyReply) {
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
-  const app = Fastify({ logger: false, bodyLimit: 1_000_000 });
+  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1_000_000 });
   app.decorateRequest('apiKeyId', null);
   app.setErrorHandler(errorHandler);
 
@@ -74,7 +77,14 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return reply.status(404).send({ success: false, code: 'NOT_FOUND', error: 'Route not found' });
   });
 
-  app.get('/health', async () => ({ ok: true }));
+  // probes run every few seconds: keep them out of the request log
+  app.get('/health', { logLevel: 'silent' }, async () => ({ ok: true }));
+
+  app.get('/ready', { logLevel: 'silent' }, async (_req, reply) => {
+    const checks = deps.ready ? await deps.ready() : {};
+    const ok = Object.values(checks).every((v) => v === 'ok');
+    return reply.status(ok ? 200 : 503).send({ ok, checks });
+  });
 
   app.get('/.well-known/icecrawl-keys.json', async () => ({ keys: await deps.store.listPublicKeys() }));
 

@@ -29,6 +29,8 @@ export interface Runtime {
   extraction: ExtractionDeps;
   search: SearchProvider | null;
   rateLimiter: RateLimiter | null;
+  /** 'ok' or a short reason for each dependency (served at /ready). */
+  ready(): Promise<Record<string, string>>;
   close(): Promise<void>;
 }
 
@@ -88,6 +90,10 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     extraction,
     search,
     rateLimiter: config.rateLimitPerMinute > 0 ? new RedisRateLimiter(queues.connection, config.queuePrefix, config.rateLimitPerMinute, 60_000) : null,
+    async ready() {
+      const check = (p: Promise<unknown>) => p.then(() => 'ok', (err: Error) => `unreachable: ${err.message}`.slice(0, 120));
+      return { postgres: await check(store.ping()), redis: await check(queues.ping()) };
+    },
     delivery: { secret: webhookSecret, allowPrivate: config.allowPrivateNetworks },
     async close() {
       await queues.close();

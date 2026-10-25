@@ -57,3 +57,16 @@ describe('loadConfig rate limit', () => {
     expect(() => loadConfig({ ICECRAWL_RATE_LIMIT_PER_MINUTE: 'many' })).toThrow(/ICECRAWL_RATE_LIMIT_PER_MINUTE/);
   });
 });
+
+describe('loadConfig operations settings', () => {
+  it('has sensible defaults: six hours of runtime, info logs', () => {
+    expect(loadConfig({})).toMatchObject({ jobMaxRuntimeHours: 6, logLevel: 'info' });
+  });
+
+  it('reads and validates them', () => {
+    expect(loadConfig({ ICECRAWL_JOB_MAX_RUNTIME_HOURS: '2', ICECRAWL_LOG_LEVEL: 'warn' })).toMatchObject({ jobMaxRuntimeHours: 2, logLevel: 'warn' });
+    expect(() => loadConfig({ ICECRAWL_JOB_MAX_RUNTIME_HOURS: '0' })).toThrow(/ICECRAWL_JOB_MAX_RUNTIME_HOURS/);
+    expect(loadConfig({ ICECRAWL_LOG_LEVEL: '' }).logLevel).toBe('info');
+    expect(() => loadConfig({ ICECRAWL_LOG_LEVEL: 'loud' })).toThrow(/ICECRAWL_LOG_LEVEL/);
+  });
+});

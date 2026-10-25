@@ -6,7 +6,7 @@ import { createRuntime } from './runtime';
 const config = loadConfig();
 const rt = await createRuntime(config);
 const workers = startJobWorkers(rt.queues, rt.jobDeps, rt.delivery, { concurrency: config.workerConcurrency });
-const stopReaper = startReaper(rt.store);
+const stopReaper = startReaper(rt.store, { maxRuntimeMs: config.jobMaxRuntimeHours * 3_600_000 });
 
 const shutdown = async () => {
   stopReaper();

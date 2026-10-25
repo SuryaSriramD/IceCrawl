@@ -209,6 +209,14 @@ export class PgStore implements Store {
     return rows.length;
   }
 
+  async failStaleJobs(olderThan: Date): Promise<number> {
+    const stopped = this.sql.json({ error: 'The job did not finish in time and was stopped.', code: 'TIMEOUT' } as never);
+    const rows = await this.sql`
+      update jobs set status = 'failed', completed_at = now(), result = coalesce(result, ${stopped})
+      where status = 'scraping' and created_at < ${olderThan.toISOString()} returning id`;
+    return rows.length;
+  }
+
   async usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage> {
     const [s] = await this.sql`
       select count(*)::int as n from scrapes
@@ -238,6 +246,10 @@ export class PgStore implements Store {
     const [r] = await this.sql`
       select max(created_at) as t from scrapes where api_key_id is not distinct from ${apiKeyId} and (response->>'success') = 'true'`;
     return r?.t ? new Date(r.t).toISOString() : null;
+  }
+
+  async ping(): Promise<void> {
+    await this.sql`select 1`;
   }
 
   async close(): Promise<void> {

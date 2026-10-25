@@ -163,6 +163,23 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       expect(await store.latestScrapeAt(key)).toBe('2026-05-03T10:00:00.000Z');
     });
 
+    it('fails only the running jobs that are older than the cutoff, keeping any stored result', async () => {
+      const running = newJob();
+      const done = newJob();
+      for (const j of [running, done]) await store.createJob(j);
+      await store.finalizeJob(done.id, 'completed');
+      expect(await store.failStaleJobs(new Date(Date.now() - 60_000))).toBe(0);
+      expect((await store.getJob(running.id))?.status).toBe('scraping');
+      expect(await store.failStaleJobs(new Date(Date.now() + 60_000))).toBeGreaterThanOrEqual(1);
+      expect(await store.getJob(running.id)).toMatchObject({ status: 'failed', result: { code: 'TIMEOUT' } });
+      expect((await store.getJob(running.id))?.completedAt).not.toBeNull();
+      expect((await store.getJob(done.id))?.status).toBe('completed');
+    });
+
+    it('answers a ping', async () => {
+      await expect(store.ping()).resolves.toBeUndefined();
+    });
+
     it('creates and reads a job', async () => {
       const job = newJob({ webhook: { url: 'https://hooks.example.com/x', events: ['page'] } });
       await store.createJob(job);

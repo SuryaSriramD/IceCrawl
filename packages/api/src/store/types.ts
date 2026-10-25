@@ -130,9 +130,13 @@ export interface Store {
   listJobPages(jobId: string, skip: number, maxBytes: number): Promise<{ items: Record<string, unknown>[]; nextSkip: number | null }>;
   listActiveJobs(apiKeyId: string | null): Promise<JobRecord[]>;
   deleteExpiredJobs(now: Date): Promise<number>;
+  /** Marks jobs that are still running but were created before `olderThan` as failed (their worker is gone). */
+  failStaleJobs(olderThan: Date): Promise<number>;
   usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage>;
   recentScrapes(apiKeyId: string | null, o: { limit: number; before?: string; endpoint?: string }): Promise<ActivityRow[]>;
   latestScrapeAt(apiKeyId: string | null): Promise<string | null>;
+  /** Throws when the database cannot be reached. */
+  ping(): Promise<void>;
   close(): Promise<void>;
 }
 

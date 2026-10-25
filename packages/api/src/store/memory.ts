@@ -153,6 +153,17 @@ export class MemoryStore implements Store {
     }
     return n;
   }
+  async failStaleJobs(olderThan: Date): Promise<number> {
+    let n = 0;
+    for (const j of this.jobs.values()) {
+      if (j.status !== 'scraping' || Date.parse(j.createdAt) >= olderThan.getTime()) continue;
+      j.status = 'failed';
+      j.completedAt = new Date().toISOString();
+      j.result ??= { error: 'The job did not finish in time and was stopped.', code: 'TIMEOUT' };
+      n++;
+    }
+    return n;
+  }
   async usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage> {
     const inRange = (iso: string) => Date.parse(iso) >= from.getTime() && Date.parse(iso) < to.getTime();
     const scrapes = [...this.scrapes.values()].filter((s) => s.apiKeyId === apiKeyId && inRange(s.createdAt)).length;
@@ -179,6 +190,7 @@ export class MemoryStore implements Store {
       .sort();
     return times.length > 0 ? times[times.length - 1] : null;
   }
+  async ping(): Promise<void> {}
   async close(): Promise<void> {}
 }
 

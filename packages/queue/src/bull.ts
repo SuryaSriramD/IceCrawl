@@ -106,6 +106,11 @@ export class BullQueues implements JobQueues {
     await this.connection.del(`${this.prefix}:seen:${jobId}`, `${this.prefix}:active:${jobId}`, `${this.prefix}:slot:${jobId}`);
   }
 
+  /** Throws when Redis cannot be reached. */
+  async ping(): Promise<void> {
+    await this.connection.ping();
+  }
+
   async close(): Promise<void> {
     await this.scrapeQueue.close();
     await this.webhookQueue.close();

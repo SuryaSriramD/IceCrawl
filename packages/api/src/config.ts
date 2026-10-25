@@ -14,6 +14,17 @@ function nonNegativeInt(env: NodeJS.ProcessEnv, name: string, fallback: number):
   return n;
 }
 
+const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+function loadLogLevel(env: NodeJS.ProcessEnv): LogLevel {
+  const level = env.ICECRAWL_LOG_LEVEL || 'info';
+  if (!(LOG_LEVELS as readonly string[]).includes(level)) {
+    throw new Error(`ICECRAWL_LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')} (got "${level}")`);
+  }
+  return level as LogLevel;
+}
+
 function positiveInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   const raw = env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -82,6 +93,8 @@ export interface AppConfig {
   searchMaxScrape: number;
   extractMaxPages: number;
   rateLimitPerMinute: number;
+  jobMaxRuntimeHours: number;
+  logLevel: LogLevel;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -121,5 +134,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
     extractMaxPages: positiveInt(env, 'ICECRAWL_EXTRACT_MAX_PAGES', 20),
     rateLimitPerMinute: nonNegativeInt(env, 'ICECRAWL_RATE_LIMIT_PER_MINUTE', 0),
+    jobMaxRuntimeHours: positiveInt(env, 'ICECRAWL_JOB_MAX_RUNTIME_HOURS', 6),
+    logLevel: loadLogLevel(env),
   };
 }

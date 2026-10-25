@@ -20,6 +20,8 @@ const app = buildApp({
   searchMaxScrape: config.searchMaxScrape,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },
+  ready: () => rt.ready(),
+  logger: config.logLevel === 'silent' ? false : { level: config.logLevel, redact: ['req.headers.authorization'] },
   jobs: {
     queues: rt.queues,
     publicUrl: config.publicUrl,
@@ -32,7 +34,7 @@ const app = buildApp({
 });
 
 const workers = config.runWorker ? startJobWorkers(rt.queues, rt.jobDeps, rt.delivery, { concurrency: config.workerConcurrency }) : null;
-const stopReaper = startReaper(rt.store);
+const stopReaper = startReaper(rt.store, { maxRuntimeMs: config.jobMaxRuntimeHours * 3_600_000 });
 
 const shutdown = async () => {
   stopReaper();
