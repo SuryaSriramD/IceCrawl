@@ -98,7 +98,7 @@ tool_timeout_sec = 300
 
 **Streamable HTTP** (one shared server): run `ICECRAWL_MCP_TOKEN=secret node packages/mcp/bin/icecrawl-mcp.mjs --http --port 3003`, then `claude mcp add --transport http icecrawl http://127.0.0.1:3003/mcp --header "Authorization: Bearer secret"`. The HTTP server binds to loopback, checks the `Host` header, and refuses to listen on other addresses without `ICECRAWL_MCP_TOKEN`.
 
-Tools: `icecrawl_scrape`, `icecrawl_map`, `icecrawl_crawl`, `icecrawl_check_crawl_status`, `icecrawl_cancel_crawl`, `icecrawl_batch_scrape`, `icecrawl_check_batch_status`, `icecrawl_search`, `icecrawl_extract`, `icecrawl_check_extract_status`, `icecrawl_verify_receipt`. Set `ICECRAWL_MCP_TOOL_PREFIX=firecrawl_` to expose Firecrawl's tool names (`firecrawl_scrape`, `firecrawl_check_crawl_status`, ...) so existing prompts and skills keep working. `FIRECRAWL_API_URL` / `FIRECRAWL_API_KEY` are accepted as fallbacks.
+Tools: `icecrawl_scrape`, `icecrawl_map`, `icecrawl_crawl`, `icecrawl_check_crawl_status`, `icecrawl_cancel_crawl`, `icecrawl_batch_scrape`, `icecrawl_check_batch_status`, `icecrawl_search`, `icecrawl_extract`, `icecrawl_check_extract_status`, `icecrawl_agent`, `icecrawl_check_agent_status`, `icecrawl_list_interact_sessions`, `icecrawl_verify_receipt`. Set `ICECRAWL_MCP_TOOL_PREFIX=firecrawl_` to expose Firecrawl's tool names (`firecrawl_scrape`, `firecrawl_check_crawl_status`, ...) so existing prompts and skills keep working. `FIRECRAWL_API_URL` / `FIRECRAWL_API_KEY` are accepted as fallbacks.
 
 What makes the results safe for agents:
 

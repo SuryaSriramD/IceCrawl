@@ -49,7 +49,7 @@ describe('tool registry', () => {
     const { mcp, close } = await connect(client);
     const tools = await mcp.listTools();
     expect(tools.tools.map((t) => t.name).sort()).toEqual(
-      ['icecrawl_batch_scrape', 'icecrawl_cancel_crawl', 'icecrawl_check_batch_status', 'icecrawl_check_crawl_status', 'icecrawl_check_extract_status', 'icecrawl_crawl', 'icecrawl_extract', 'icecrawl_map', 'icecrawl_scrape', 'icecrawl_search', 'icecrawl_verify_receipt'].sort(),
+      ['icecrawl_agent', 'icecrawl_batch_scrape', 'icecrawl_cancel_crawl', 'icecrawl_check_agent_status', 'icecrawl_check_batch_status', 'icecrawl_check_crawl_status', 'icecrawl_check_extract_status', 'icecrawl_crawl', 'icecrawl_extract', 'icecrawl_list_interact_sessions', 'icecrawl_map', 'icecrawl_scrape', 'icecrawl_search', 'icecrawl_verify_receipt'].sort(),
     );
     for (const t of tools.tools) {
       expect(t.description?.length ?? 0).toBeGreaterThan(40);
@@ -391,5 +391,45 @@ describe('search and extract tools', () => {
 
   it('tells the model that search results and extracted data are untrusted', () => {
     expect(SERVER_INSTRUCTIONS).toContain('Search results and extracted data');
+  });
+});
+
+describe('agent and interact tools', () => {
+  const answered = { success: true, status: 'completed', data: { answer: 'Paris' }, sources: [{ url: 'https://e.com/a', receiptId: 'r-5' }], tokensUsed: 90 };
+
+  it('starts an agent run, waits for it and wraps the answer as untrusted', async () => {
+    let polls = 0;
+    const { client, calls } = api((c) => (c.method === 'POST' ? { json: { success: true, id: 'a1' } } : { json: ++polls < 2 ? { success: true, status: 'processing' } : answered }));
+    const { mcp, close } = await connect(client, { pollIntervalMs: 1 });
+    const t = textOf(await mcp.callTool({ name: 'icecrawl_agent', arguments: { prompt: 'Capital of France?', effort: 'low' } }));
+    expect(calls[0]).toMatchObject({ method: 'POST', path: '/v2/agent', body: { prompt: 'Capital of France?', effort: 'low' } });
+    expect(t).toContain('"answer": "Paris"');
+    expect(t).toContain('receipt r-5');
+    expect(t).toContain('<<<ICECRAWL_UNTRUSTED_CONTENT');
+    await close();
+  });
+
+  it('returns an id when the run is still going, and reports failures as errors', async () => {
+    const { client } = api((c) => (c.method === 'POST' ? { json: { success: true, id: 'a2' } } : { json: { success: true, status: 'processing' } }));
+    const { mcp, close } = await connect(client, { pollIntervalMs: 1 });
+    expect(textOf(await mcp.callTool({ name: 'icecrawl_agent', arguments: { prompt: 'p', waitSeconds: 0 } }))).toContain('icecrawl_check_agent_status');
+    await close();
+
+    const failing = api(() => ({ json: { success: true, status: 'failed', code: 'EXTRACTION_FAILED', error: 'The agent used all its turns without a valid answer.' } }));
+    const other = await connect(failing.client);
+    const r = await other.mcp.callTool({ name: 'icecrawl_check_agent_status', arguments: { id: 'a3' } });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('EXTRACTION_FAILED');
+    await other.close();
+  });
+
+  it('lists interact sessions without any way to run code', async () => {
+    const { client, calls } = api(() => ({ json: { success: true, sessions: [{ id: 's1', status: 'active', createdAt: 'c', lastActivity: 'l' }] } }));
+    const { mcp, close } = await connect(client);
+    expect(textOf(await mcp.callTool({ name: 'icecrawl_list_interact_sessions', arguments: {} }))).toContain('s1 · active');
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/v2/interact' });
+    const names = (await mcp.listTools()).tools.map((t) => t.name);
+    expect(names.filter((n) => /execute|interact/.test(n))).toEqual(['icecrawl_list_interact_sessions']);
+    await close();
   });
 });

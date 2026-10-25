@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- MCP: `agent`, `check_agent_status` and `list_interact_sessions` tools (14 in total). Code execution in interact sessions is deliberately not exposed.
+
 - Agent: `POST/GET /v2/agent`, `GET/DELETE /v2/agent/{id}`, trace and snapshots. A search/read/answer loop on your own model, with every page read through the trust pipeline. SDK `agent()`. See docs/agent.md.
 
 - Interact sessions: `POST/GET /v2/interact`, `POST /v2/interact/{id}/execute`, `DELETE /v2/interact/{id}`, `POST/DELETE /v2/scrape/{id}/interact`. Node code against a persistent browser; off by default (`ICECRAWL_INTERACT_CODE`), not a sandbox. See docs/interact.md.

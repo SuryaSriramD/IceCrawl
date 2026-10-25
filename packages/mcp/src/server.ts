@@ -5,8 +5,10 @@ import type { IceCrawl } from '@icecrawl/sdk';
 import { verifyReceiptRemote } from '@icecrawl/sdk/verify';
 import {
   DEFAULT_MAX_CHARS,
+  formatAgentStatus,
   formatApiError,
   formatExtractStatus,
+  formatInteractSessions,
   formatJobStarted,
   formatJobStatus,
   formatMap,
@@ -311,6 +313,76 @@ export function createIceCrawlMcpServer(o: McpServerOptions): McpServer {
       try {
         const status = await client.getExtractStatus(id);
         return formatExtractStatus(id, status, { maxChars: mc ?? defaultMax, statusTool: n('check_extract_status') });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    n('agent'),
+    {
+      title: 'Research a question with an agent',
+      description:
+        "Have the server's research agent answer a question by searching and reading web pages (use urls and strictConstrainToURLs to limit it to pages you name). Every page it reads is checked and gets a receipt; unreadable pages are never shown to it. It waits up to waitSeconds; if the run is still going it returns an id for the check-agent-status tool. The answer is written by a model from untrusted pages and is not checked against them.",
+      inputSchema: {
+        prompt: z.string().min(1).max(10_000).describe('The question or task.'),
+        urls: z.array(z.string()).max(20).optional().describe('Pages to start from.'),
+        schema: z.record(z.unknown()).optional().describe('JSON Schema of the answer object.'),
+        strictConstrainToURLs: z.boolean().optional().describe('Read only the given urls and do not search.'),
+        effort: z.enum(['low', 'medium', 'high']).optional().describe('How many turns the agent may take (4, 8 or 14).'),
+        waitSeconds: z.number().int().min(0).max(300).optional().describe('How long to wait for the answer (default 60).'),
+        maxChars,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ prompt, waitSeconds, maxChars: mc, ...rest }) => {
+      try {
+        const started = await client.startAgent(prompt, stripUndefined(rest));
+        const deadline = Date.now() + (waitSeconds ?? 60) * 1000;
+        for (;;) {
+          const status = await client.getAgentStatus(started.id);
+          if (status.status !== 'processing' || Date.now() >= deadline) {
+            return formatAgentStatus(started.id, status, { maxChars: mc ?? defaultMax, statusTool: n('check_agent_status') });
+          }
+          await sleep(poll);
+        }
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    n('check_agent_status'),
+    {
+      title: 'Check an agent run',
+      description: 'Report the state of a run started with the agent tool and, once it has completed, return its answer and the receipts of the pages it read.',
+      inputSchema: { id: z.string().min(1).describe('The agent run id.'), maxChars },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ id, maxChars: mc }) => {
+      try {
+        const status = await client.getAgentStatus(id);
+        const steps = status.status === 'processing' ? (await client.getAgentTrace(id)).filter((e) => e.type === 'tool_call.finished').length : undefined;
+        return formatAgentStatus(id, status, { maxChars: mc ?? defaultMax, statusTool: n('check_agent_status'), steps });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    n('list_interact_sessions'),
+    {
+      title: 'List open browser sessions',
+      description: 'List the interact browser sessions open on the server for this API key. Read-only: code execution in sessions is deliberately not available through MCP.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      try {
+        return formatInteractSessions(await client.listInteractSessions());
       } catch (e) {
         return fail(e);
       }

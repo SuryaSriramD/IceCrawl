@@ -213,6 +213,9 @@ export class IceCrawl {
   executeInteract(sessionId: string, code: string, o: { timeout?: number } = {}): Promise<InteractResult> {
     return this.json('POST', `/v2/interact/${sessionId}/execute`, { code, language: 'node', ...o });
   }
+  async listInteractSessions(): Promise<Array<{ id: string; status: string; createdAt: string; lastActivity: string }>> {
+    return (await this.json<{ sessions: Array<{ id: string; status: string; createdAt: string; lastActivity: string }> }>('GET', '/v2/interact')).sessions;
+  }
   async deleteInteractSession(sessionId: string): Promise<void> {
     await this.json('DELETE', `/v2/interact/${sessionId}`);
   }

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { AgentStatus } from '@icecrawl/sdk';
 import type { ExtractStatusResponse, InjectionReport, JobStatusResponse, MapLink, ScrapeDocument, SearchResponse, SearchResultTrust, TrustBlock } from '@icecrawl/core';
 import { IceCrawlApiError } from '@icecrawl/sdk';
 import type { VerifyReport } from '@icecrawl/sdk/verify';
@@ -270,4 +271,31 @@ export function formatExtractStatus(
   return {
     content: [text(`${header.join('\n')}${body.truncated ? `\nOutput was truncated to ${o.maxChars} characters.` : ''}\n\n${wrapUntrusted(body.text, 'extracted data')}`)],
   };
+}
+
+export function formatAgentStatus(id: string, s: AgentStatus, o: { maxChars: number; statusTool: string; steps?: number }): CallToolResult {
+  if (s.status === 'processing') {
+    return { content: [text(`IceCrawl agent ${id}: still working${o.steps ? ` (${o.steps} steps so far)` : ''}. Call ${o.statusTool} with this id again in a few seconds.`)] };
+  }
+  if (s.status !== 'completed') {
+    return { isError: true, content: [text(`IceCrawl agent ${id} failed${s.code ? ` (${s.code})` : ''}: ${s.error ?? 'no details were recorded.'}`)] };
+  }
+  const sources = s.sources ?? [];
+  const header = [
+    `IceCrawl agent ${id}: completed${s.tokensUsed !== undefined ? ` · ${s.tokensUsed} tokens` : ''}`,
+    `${sources.length} page(s) read (receipts listed after the answer). The answer was written by a model from untrusted pages and is not grounded against them; verify facts you rely on.`,
+  ];
+  const inside = [
+    JSON.stringify(s.data, null, 2) ?? 'null',
+    ...(sources.length > 0 ? ['', 'Sources:', ...sources.map((p) => ` - ${p.url} · receipt ${p.receiptId}`)] : []),
+  ].join('\n');
+  const body = truncateToBudget(inside, o.maxChars);
+  const note = body.truncated ? `\nOutput was truncated to ${o.maxChars} characters.` : '';
+  return { content: [text(`${header.join('\n')}${note}\n\n${wrapUntrusted(body.text, 'agent answer')}`)] };
+}
+
+export function formatInteractSessions(sessions: Array<{ id: string; status: string; createdAt: string; lastActivity: string }>): CallToolResult {
+  if (sessions.length === 0) return { content: [text('IceCrawl interact: no browser sessions are open.')] };
+  const rows = sessions.map((s) => ` - ${s.id} · ${s.status} · created ${s.createdAt} · last active ${s.lastActivity}`);
+  return { content: [text(`IceCrawl interact: ${sessions.length} browser session(s) open.\n${rows.join('\n')}`)] };
 }
