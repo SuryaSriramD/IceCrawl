@@ -1,9 +1,9 @@
 import type { ExtractionReport, ScanSummary, TrustBlock, Verdict } from './trust';
 
 export interface ScrapeMetadata {
-  title: string | null;
-  description: string | null;
-  language: string | null;
+  title?: string | null;
+  description?: string | null;
+  language?: string | null;
   sourceURL: string;
   url: string;
   statusCode: number;

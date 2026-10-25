@@ -57,10 +57,11 @@ export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { sta
       pdfs: run.actions.pdfs.map((b) => Buffer.from(b).toString('base64')),
     };
   }
+  // Firecrawl's schema types these as strings: leave them out when the page has none instead of sending null.
   data.metadata = {
-    title: run.title,
-    description: run.description,
-    language: run.language,
+    ...(run.title ? { title: run.title } : {}),
+    ...(run.description ? { description: run.description } : {}),
+    ...(run.language ? { language: run.language } : {}),
     sourceURL: run.requestedUrl,
     url: run.finalUrl,
     statusCode: run.statusCode,
