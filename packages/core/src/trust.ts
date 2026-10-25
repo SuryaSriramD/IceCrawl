@@ -54,6 +54,36 @@ export interface InjectionReport extends ScanSummary {
   findings: InjectionFinding[];
 }
 
+export type GroundingStatus = 'grounded' | 'partial' | 'ungrounded';
+
+export interface GroundedField {
+  path: string;
+  status: GroundingStatus;
+  /** Index of the first source (page) that contains the value; null when it was not found. */
+  source: number | null;
+}
+
+export interface GroundingReport {
+  checked: number;
+  grounded: number;
+  partial: number;
+  ungrounded: number;
+  /** Ungrounded fields first, then partial, then grounded; capped (see `truncated`). */
+  fields: GroundedField[];
+  /** True when the data had more values than the check examined or listed. */
+  truncated: boolean;
+}
+
+export interface ExtractionReport {
+  provider: string;
+  model: string;
+  schemaValidated: boolean;
+  repaired: boolean;
+  /** Indexes of sources that were cut short to fit the model's input budget. */
+  truncatedSources: number[];
+  grounding: GroundingReport;
+}
+
 export interface TrustBlock {
   verdict: Verdict;
   confidence: number;
@@ -61,6 +91,7 @@ export interface TrustBlock {
   receiptId: string;
   engine: string;
   injection?: InjectionReport;
+  extraction?: ExtractionReport;
 }
 
 export interface EngineAttempt {

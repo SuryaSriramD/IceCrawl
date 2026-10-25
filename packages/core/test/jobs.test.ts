@@ -26,7 +26,7 @@ describe('normalizeCrawlRequest', () => {
     expect(() => normalizeCrawlRequest({ url: 'https://example.com', scrapeOptions: { timeout: 5 } })).toThrowError(
       expect.objectContaining({ code: 'VALIDATION' }),
     );
-    expect(() => normalizeCrawlRequest({ url: 'https://example.com', scrapeOptions: { formats: ['json'] } })).toThrowError(
+    expect(() => normalizeCrawlRequest({ url: 'https://example.com', scrapeOptions: { formats: ['branding'] } })).toThrowError(
       expect.objectContaining({ code: 'UNSUPPORTED_OPTION' }),
     );
   });

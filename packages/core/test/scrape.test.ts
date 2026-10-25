@@ -22,15 +22,42 @@ describe('normalizeScrapeRequest', () => {
   });
 
   it('warns about unsupported formats but keeps supported ones', () => {
-    const n = normalizeScrapeRequest({ url: 'https://example.com', formats: ['markdown', 'json'] });
+    const n = normalizeScrapeRequest({ url: 'https://example.com', formats: ['markdown', 'branding'] });
     expect(n.formats).toEqual(['markdown']);
-    expect(n.warnings.join(' ')).toContain('json');
+    expect(n.warnings.join(' ')).toContain('branding');
   });
 
   it('rejects a request whose formats are all unsupported', () => {
-    expect(() => normalizeScrapeRequest({ url: 'https://example.com', formats: ['json'] })).toThrowError(
+    expect(() => normalizeScrapeRequest({ url: 'https://example.com', formats: ['branding'] })).toThrowError(
       expect.objectContaining({ code: 'UNSUPPORTED_OPTION' }),
     );
+  });
+
+  it('accepts the json format with a schema and a prompt', () => {
+    const schema = { type: 'object', properties: { title: { type: 'string' } } };
+    const n = normalizeScrapeRequest({
+      url: 'https://example.com',
+      formats: ['markdown', { type: 'json', schema, prompt: 'Get the title' }],
+    });
+    expect(n.formats).toEqual(['markdown', 'json']);
+    expect(n.json).toEqual({ schema, prompt: 'Get the title' });
+  });
+
+  it('accepts bare json and summary, and leaves json null when it is not requested', () => {
+    const n = normalizeScrapeRequest({ url: 'https://example.com', formats: ['json', 'summary'] });
+    expect(n.formats).toEqual(['json', 'summary']);
+    expect(n.json).toEqual({});
+    expect(normalizeScrapeRequest({ url: 'https://example.com' }).json).toBeNull();
+  });
+
+  it('rejects a malformed or oversized json schema', () => {
+    expect(() =>
+      normalizeScrapeRequest({ url: 'https://example.com', formats: [{ type: 'json', schema: 'nope' }] }),
+    ).toThrowError(expect.objectContaining({ code: 'VALIDATION' }));
+    const huge = { type: 'object', description: 'x'.repeat(60_000) };
+    expect(() =>
+      normalizeScrapeRequest({ url: 'https://example.com', formats: [{ type: 'json', schema: huge }] }),
+    ).toThrowError(/50000/);
   });
 
   it('warns about unknown options', () => {

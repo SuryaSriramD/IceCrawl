@@ -1,4 +1,4 @@
-import type { TrustBlock } from './trust';
+import type { ExtractionReport, ScanSummary, TrustBlock, Verdict } from './trust';
 
 export interface ScrapeMetadata {
   title: string | null;
@@ -17,6 +17,8 @@ export interface ScrapeDocument {
   html?: string;
   rawHtml?: string;
   links?: string[];
+  json?: unknown;
+  summary?: string;
   screenshot?: string;
   actions?: {
     screenshots: string[];
@@ -69,4 +71,79 @@ export interface ApiErrorBody {
   code: string;
   error: string;
   trust?: TrustBlock;
+}
+
+/** Trust data of one search result: the page's trust block when it was scraped, plus the scan of its title and description. */
+export interface SearchResultTrust extends Partial<TrustBlock> {
+  snippetInjection?: ScanSummary;
+}
+
+export interface SearchWebResult {
+  title: string;
+  description: string;
+  url: string;
+  markdown?: string;
+  html?: string;
+  rawHtml?: string;
+  links?: string[];
+  screenshot?: string;
+  json?: unknown;
+  summary?: string;
+  metadata?: Partial<ScrapeMetadata> & { error?: string };
+  trust?: SearchResultTrust;
+  warning?: string;
+}
+
+export interface SearchImageResult {
+  title: string;
+  imageUrl: string;
+  url: string;
+  imageWidth?: number;
+  imageHeight?: number;
+}
+
+export interface SearchNewsResult {
+  title: string;
+  snippet: string;
+  url: string;
+  date?: string;
+  trust?: SearchResultTrust;
+}
+
+export interface SearchResponse {
+  success: true;
+  id: string;
+  creditsUsed: number;
+  warning?: string;
+  data: { web?: SearchWebResult[]; images?: SearchImageResult[]; news?: SearchNewsResult[] };
+}
+
+export interface ExtractStartResponse {
+  success: true;
+  id: string;
+  invalidURLs?: string[];
+  warning?: string;
+}
+
+export interface ExtractSourceInfo {
+  url: string;
+  receiptId: string;
+  verdict: Verdict;
+  injectionFlagged: boolean;
+}
+
+export interface ExtractStatusResponse {
+  success: true;
+  status: 'processing' | 'completed' | 'failed' | 'cancelled';
+  expiresAt: string;
+  data?: unknown;
+  tokensUsed?: number;
+  error?: string;
+  code?: string;
+  warning?: string;
+  /** Present when `showSources` was true: JSON path of an extracted value → URLs that contain it. */
+  sources?: Record<string, string[]>;
+  /** Pages that could not be used, with the reason. */
+  skipped?: Array<{ url: string; error: string }>;
+  trust?: { extraction: ExtractionReport; sources: ExtractSourceInfo[] };
 }

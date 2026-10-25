@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IceCrawlError } from './errors';
-import { normalizeScrapeRequest, scrapeRequestSchema } from './scrape';
+import { normalizeScrapeRequest, scrapeOptionsSchema } from './scrape';
 
 const issues = (e: z.ZodError) => e.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; ');
 const unknownKeys = (input: unknown, known: Set<string>): string[] =>
@@ -28,8 +28,6 @@ const regexList = z
       }
     });
   });
-
-const scrapeOptionsSchema = scrapeRequestSchema.omit({ url: true }).partial().passthrough();
 
 export const crawlRequestSchema = z.object({
   url: httpUrl,
