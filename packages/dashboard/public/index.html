@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IceCrawl</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <strong class="brand">IceCrawl</strong>
+      <nav id="nav"></nav>
+      <form id="keyform" class="keyform" autocomplete="off">
+        <input id="key" type="password" placeholder="API key" aria-label="API key" autocomplete="off" />
+        <button type="submit">Use key</button>
+        <span id="keystate" class="muted"></span>
+      </form>
+    </header>
+    <main id="view"><p class="muted">Loading…</p></main>
+    <noscript>The dashboard needs JavaScript.</noscript>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

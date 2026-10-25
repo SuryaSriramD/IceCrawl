@@ -71,6 +71,13 @@ describe('loadConfig operations settings', () => {
   });
 });
 
+describe('loadConfig dashboard', () => {
+  it('is on unless turned off', () => {
+    expect(loadConfig({}).dashboard).toBe(true);
+    expect(loadConfig({ ICECRAWL_DASHBOARD: 'false' }).dashboard).toBe(false);
+  });
+});
+
 describe('loadConfig index providers', () => {
   it('has no providers file unless configured', () => {
     expect(loadConfig({}).providersFile).toBeUndefined();

@@ -128,6 +128,10 @@ const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
 
 `/v2/interact` gives you a persistent browser you can script with node code (off by default; [docs/interact.md](docs/interact.md)). `/v2/agent` runs a research agent that searches and reads pages and returns an answer with a trace and the receipts of the pages it read ([docs/agent.md](docs/agent.md)).
 
+## Dashboard
+
+Open `http://localhost:3002/dashboard/`, paste an API key and use the playground, jobs, receipts (checked in your browser) and monitors ([docs/dashboard.md](docs/dashboard.md)).
+
 ## Index
 
 `POST /v2/index/search` searches the pages you have already scraped (full text, with receipt ids) and any external data sources you configure, without touching the web ([docs/index.md](docs/index.md)).

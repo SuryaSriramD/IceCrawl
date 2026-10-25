@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Dashboard at `/dashboard/`: overview, playground, jobs, receipts (in-browser signature and snapshot checks), monitors with diffs. No build step; strict content security policy; `ICECRAWL_DASHBOARD=false` turns it off. Stored snapshots are now served with `Content-Security-Policy: sandbox`. See docs/dashboard.md.
+
 - Index: `POST /v2/index/search` (full-text search over your stored scrapes, latest copy of each URL, with receipts) and `GET /v2/index/providers`; operator-defined HTTP data providers via `ICECRAWL_PROVIDERS_FILE`. SDK `searchIndex()`, MCP `search_index`. See docs/index.md.
 
 - Monitors: `/v2/monitor` CRUD, runs, checks and per-page change reports with diffs, cron schedules, webhooks. Blocked pages are errors, never changes. See docs/monitor.md.

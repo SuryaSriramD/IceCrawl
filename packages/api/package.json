@@ -19,6 +19,7 @@
     "@icecrawl/agent": "workspace:*",
     "@icecrawl/core": "workspace:*",
     "@icecrawl/crawler": "workspace:*",
+    "@icecrawl/dashboard": "workspace:*",
     "@icecrawl/documents": "workspace:*",
     "@icecrawl/engines": "workspace:*",
     "@icecrawl/extract": "workspace:*",

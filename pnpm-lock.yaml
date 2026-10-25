@@ -50,6 +50,9 @@ importers:
       '@icecrawl/crawler':
         specifier: workspace:*
         version: link:../crawler
+      '@icecrawl/dashboard':
+        specifier: workspace:*
+        version: link:../dashboard
       '@icecrawl/documents':
         specifier: workspace:*
         version: link:../documents
@@ -160,6 +163,8 @@ importers:
       tldts:
         specifier: ^7.4.19
         version: 7.4.19
+
+  packages/dashboard: {}
 
   packages/documents:
     dependencies:

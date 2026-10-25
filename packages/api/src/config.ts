@@ -101,6 +101,7 @@ export interface AppConfig {
   monitorMaxPages: number;
   /** JSON file describing external data providers for the index; undefined when not configured. */
   providersFile?: string;
+  dashboard: boolean;
   /** Operator proxy pools (http(s) URLs); empty when not configured. */
   proxiesEnhanced: string[];
   proxiesStealth: string[];
@@ -153,6 +154,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     monitorMinIntervalMinutes: positiveInt(env, 'ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES', 15),
     monitorMaxPages: positiveInt(env, 'ICECRAWL_MONITOR_MAX_PAGES', 50),
     providersFile: env.ICECRAWL_PROVIDERS_FILE || undefined,
+    dashboard: env.ICECRAWL_DASHBOARD !== 'false',
     proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),

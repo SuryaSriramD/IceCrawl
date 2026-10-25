@@ -7,6 +7,7 @@ import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
 import { registerAgentRoutes } from './routes/agent';
+import { registerDashboardRoutes } from './routes/dashboard';
 import { registerIndexRoutes } from './routes/index-search';
 import { registerInteractRoutes } from './routes/interact';
 import type { DataProvider } from './index-search/providers';
@@ -39,6 +40,8 @@ export interface AppDeps {
   monitors?: MonitorStore | null;
   /** External sources for POST /v2/index/search, besides the pages stored by scrapes. */
   providers?: readonly DataProvider[];
+  /** Serve the web dashboard at /dashboard (default true). */
+  dashboard?: boolean;
   /** Shortest time between two scheduled monitor runs (default 15). */
   monitorMinIntervalMinutes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
@@ -97,6 +100,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const ok = Object.values(checks).every((v) => v === 'ok');
     return reply.status(ok ? 200 : 503).send({ ok, checks });
   });
+
+  if (deps.dashboard !== false) registerDashboardRoutes(app);
 
   app.get('/.well-known/icecrawl-keys.json', async () => ({ keys: await deps.store.listPublicKeys() }));
 
@@ -162,7 +167,12 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         const { receipt } = await loadReceipt(req, req.params.id);
         const bytes = receipt.htmlSha256 ? await deps.snapshots.get(snapshotKey(receipt.htmlSha256)) : null;
         if (!bytes) throw new IceCrawlError('NOT_FOUND', 'Snapshot not found');
-        return reply.header('content-type', receipt.contentType || 'application/octet-stream').send(Buffer.from(bytes));
+        // the stored page is untrusted: whatever opens this URL must treat it as an inert download
+        return reply
+          .header('content-type', receipt.contentType || 'application/octet-stream')
+          .header('content-security-policy', 'sandbox')
+          .header('x-content-type-options', 'nosniff')
+          .send(Buffer.from(bytes));
       });
 
       v2.get<{ Params: { id: string } }>('/receipts/:id/screenshot', async (req, reply) => {
