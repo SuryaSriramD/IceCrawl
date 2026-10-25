@@ -128,7 +128,7 @@ export async function drain(deps: JobDeps, queues: MemoryQueues, o: { maxAttempt
 }
 
 export async function makeJobsApp(
-  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig>; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; extractMaxPages?: number; rateLimiter?: RateLimiter | null } = {},
+  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig>; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; extractMaxPages?: number; rateLimiter?: RateLimiter | null; team?: { workerConcurrency?: number } } = {},
 ) {
   const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false,
     extraction: over.extraction,
@@ -148,6 +148,7 @@ export async function makeJobsApp(
     search: over.search,
     searchMaxScrape: over.searchMaxScrape,
     rateLimiter: over.rateLimiter,
+    team: over.team,
     useAuth: over.useAuth ?? true,
     map: { fetcher: deps.fetcher },
     jobs: {

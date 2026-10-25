@@ -73,6 +73,14 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
     check('/batch/scrape/{id}/errors', 'get', await call(t, 'GET', `/v2/batch/scrape/${id}/errors`));
   });
 
+  it('team', async () => {
+    const t = await setup();
+    await call(t, 'POST', '/v2/scrape', { url: `${E}/a` });
+    for (const p of ['credit-usage', 'token-usage', 'queue-status', 'activity']) check(`/team/${p}`, 'get', await call(t, 'GET', `/v2/team/${p}`));
+    check('/team/credit-usage/historical', 'get', await call(t, 'GET', '/v2/team/credit-usage/historical'));
+    check('/team/token-usage/historical', 'get', await call(t, 'GET', '/v2/team/token-usage/historical?byApiKey=true'));
+  });
+
   it('search', async () => {
     const t = await setup();
     check('/search', 'post', await call(t, 'POST', '/v2/search', { query: 'q' }));

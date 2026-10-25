@@ -19,6 +19,7 @@ const app = buildApp({
   search: rt.search,
   searchMaxScrape: config.searchMaxScrape,
   rateLimiter: rt.rateLimiter,
+  team: { workerConcurrency: config.workerConcurrency },
   jobs: {
     queues: rt.queues,
     publicUrl: config.publicUrl,

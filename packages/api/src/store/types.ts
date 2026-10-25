@@ -69,6 +69,31 @@ export interface JobError {
   timestamp: string;
 }
 
+export interface Usage {
+  scrapes: number;
+  /** Tokens spent by /extract jobs (the only place IceCrawl records them). */
+  tokens: number;
+}
+
+export interface ActivityRow {
+  id: string;
+  /** scrape, crawl, batch_scrape or extract */
+  endpoint: string;
+  createdAt: string;
+  url: string;
+}
+
+/** The last `count` UTC calendar months, oldest first, the current one last. */
+export function lastMonths(count: number, now: Date = new Date()): Array<{ start: Date; end: Date }> {
+  return Array.from({ length: count }, (_, i) => {
+    const back = count - 1 - i;
+    return {
+      start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1)),
+      end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back + 1, 1)),
+    };
+  });
+}
+
 export const snapshotKey = (sha256: string): string => `${sha256.slice(0, 2)}/${sha256}`;
 
 export interface Store {
@@ -105,6 +130,9 @@ export interface Store {
   listJobPages(jobId: string, skip: number, maxBytes: number): Promise<{ items: Record<string, unknown>[]; nextSkip: number | null }>;
   listActiveJobs(apiKeyId: string | null): Promise<JobRecord[]>;
   deleteExpiredJobs(now: Date): Promise<number>;
+  usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage>;
+  recentScrapes(apiKeyId: string | null, o: { limit: number; before?: string; endpoint?: string }): Promise<ActivityRow[]>;
+  latestScrapeAt(apiKeyId: string | null): Promise<string | null>;
   close(): Promise<void>;
 }
 

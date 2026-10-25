@@ -1,7 +1,7 @@
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt } from '@icecrawl/core';
 import { randomUUID } from 'node:crypto';
 import { sha256Hex } from '@icecrawl/trust';
-import { snapshotKey, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store } from './types';
+import { snapshotKey, type ActivityRow, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
 
 export class MemoryStore implements Store {
   private keys = new Map<string, { id: string; name: string; revoked: boolean }>();
@@ -152,6 +152,32 @@ export class MemoryStore implements Store {
       n++;
     }
     return n;
+  }
+  async usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage> {
+    const inRange = (iso: string) => Date.parse(iso) >= from.getTime() && Date.parse(iso) < to.getTime();
+    const scrapes = [...this.scrapes.values()].filter((s) => s.apiKeyId === apiKeyId && inRange(s.createdAt)).length;
+    const tokens = [...this.jobs.values()].filter((j) => j.apiKeyId === apiKeyId && inRange(j.createdAt)).reduce((n, j) => n + (j.tokensUsed ?? 0), 0);
+    return { scrapes, tokens };
+  }
+  async recentScrapes(apiKeyId: string | null, o: { limit: number; before?: string; endpoint?: string }): Promise<ActivityRow[]> {
+    const endpointOf = (s: ScrapeRecord) => {
+      const type = s.jobId ? this.jobs.get(s.jobId)?.type : undefined;
+      return type === 'batch' ? 'batch_scrape' : (type ?? 'scrape');
+    };
+    return [...this.scrapes.values()]
+      .filter((s) => s.apiKeyId === apiKeyId)
+      .filter((s) => o.before === undefined || Date.parse(s.createdAt) < Date.parse(o.before))
+      .filter((s) => o.endpoint === undefined || endpointOf(s) === o.endpoint)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+      .slice(0, o.limit)
+      .map((s) => ({ id: s.id, endpoint: endpointOf(s), createdAt: s.createdAt, url: s.url }));
+  }
+  async latestScrapeAt(apiKeyId: string | null): Promise<string | null> {
+    const times = [...this.scrapes.values()]
+      .filter((s) => s.apiKeyId === apiKeyId && (s.response as { success?: boolean }).success === true)
+      .map((s) => s.createdAt)
+      .sort();
+    return times.length > 0 ? times[times.length - 1] : null;
   }
   async close(): Promise<void> {}
 }

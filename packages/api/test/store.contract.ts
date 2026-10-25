@@ -114,6 +114,55 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       ...over,
     });
 
+    it('counts usage per key inside a time window, with extract tokens', async () => {
+      const a = randomUUID();
+      const b = randomUUID();
+      for (const id of [a, b]) await store.createApiKey({ id, hash: `h-${id}`, name: id });
+      const at = (key: string, createdAt: string) => ({ ...sampleScrape(randomUUID(), key), createdAt });
+      for (const rec of [at(a, '2026-05-10T10:00:00.000Z'), at(a, '2026-05-20T10:00:00.000Z'), at(a, '2026-06-02T10:00:00.000Z'), at(b, '2026-05-11T10:00:00.000Z')]) {
+        await store.saveScrape(rec, sampleReceipt(rec.id), null);
+      }
+      const may = [new Date('2026-05-01T00:00:00Z'), new Date('2026-06-01T00:00:00Z')] as const;
+      expect(await store.usageBetween(a, ...may)).toEqual({ scrapes: 2, tokens: 0 });
+      expect((await store.usageBetween(b, ...may)).scrapes).toBe(1);
+
+      const job = newJob({ type: 'extract', apiKeyId: a, limit: 0 });
+      await store.createJob(job);
+      await store.saveJobResult(job.id, { data: {} }, 42);
+      const now = Date.now();
+      expect((await store.usageBetween(a, new Date(now - 60_000), new Date(now + 60_000))).tokens).toBe(42);
+      expect((await store.usageBetween(b, new Date(now - 60_000), new Date(now + 60_000))).tokens).toBe(0);
+    });
+
+    it('lists recent scrapes newest first, with a cursor and an endpoint filter', async () => {
+      const key = randomUUID();
+      await store.createApiKey({ id: key, hash: `h-${key}`, name: key });
+      const job = newJob({ type: 'batch', apiKeyId: key });
+      await store.createJob(job);
+      const mk = (createdAt: string, jobId: string | null) => ({ ...sampleScrape(randomUUID(), key), createdAt, jobId, url: `https://example.com/${createdAt}` });
+      const recs = [mk('2026-05-01T10:00:00.000Z', null), mk('2026-05-02T10:00:00.000Z', job.id), mk('2026-05-03T10:00:00.000Z', null)];
+      for (const rec of recs) await store.saveScrape(rec, sampleReceipt(rec.id), null);
+
+      const all = await store.recentScrapes(key, { limit: 10 });
+      expect(all.map((r) => r.id)).toEqual([recs[2].id, recs[1].id, recs[0].id]);
+      expect(all.map((r) => r.endpoint)).toEqual(['scrape', 'batch_scrape', 'scrape']);
+      expect(all[0]).toEqual({ id: recs[2].id, endpoint: 'scrape', createdAt: '2026-05-03T10:00:00.000Z', url: recs[2].url });
+      expect((await store.recentScrapes(key, { limit: 1 })).map((r) => r.id)).toEqual([recs[2].id]);
+      expect((await store.recentScrapes(key, { limit: 10, before: '2026-05-03T10:00:00.000Z' })).map((r) => r.id)).toEqual([recs[1].id, recs[0].id]);
+      expect((await store.recentScrapes(key, { limit: 10, endpoint: 'batch_scrape' })).map((r) => r.id)).toEqual([recs[1].id]);
+      expect(await store.recentScrapes(randomUUID(), { limit: 10 })).toEqual([]);
+    });
+
+    it('reports when the last successful scrape happened', async () => {
+      const key = randomUUID();
+      await store.createApiKey({ id: key, hash: `h-${key}`, name: key });
+      expect(await store.latestScrapeAt(key)).toBeNull();
+      const ok = { ...sampleScrape(randomUUID(), key), createdAt: '2026-05-03T10:00:00.000Z' };
+      const failed = { ...sampleScrape(randomUUID(), key), createdAt: '2026-05-09T10:00:00.000Z', response: { success: false } };
+      for (const rec of [ok, failed]) await store.saveScrape(rec, sampleReceipt(rec.id), null);
+      expect(await store.latestScrapeAt(key)).toBe('2026-05-03T10:00:00.000Z');
+    });
+
     it('creates and reads a job', async () => {
       const job = newJob({ webhook: { url: 'https://hooks.example.com/x', events: ['page'] } });
       await store.createJob(job);

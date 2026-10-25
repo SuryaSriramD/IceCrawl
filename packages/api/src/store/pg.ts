@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
-import type { ApiKeyRow, JobError, JobRecord, JobStatus, NewJob, ScrapeRecord, SnapshotMeta, Store } from './types';
+import type { ActivityRow, ApiKeyRow, JobError, JobRecord, JobStatus, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
 
 export function createSql(url: string): postgres.Sql {
   return postgres(url, { onnotice: () => {}, max: 10 });
@@ -207,6 +207,37 @@ export class PgStore implements Store {
   async deleteExpiredJobs(now: Date): Promise<number> {
     const rows = await this.sql`delete from jobs where expires_at < ${now.toISOString()} returning id`;
     return rows.length;
+  }
+
+  async usageBetween(apiKeyId: string | null, from: Date, to: Date): Promise<Usage> {
+    const [s] = await this.sql`
+      select count(*)::int as n from scrapes
+      where api_key_id is not distinct from ${apiKeyId} and created_at >= ${from.toISOString()} and created_at < ${to.toISOString()}`;
+    const [j] = await this.sql`
+      select coalesce(sum(tokens_used), 0)::int as n from jobs
+      where api_key_id is not distinct from ${apiKeyId} and created_at >= ${from.toISOString()} and created_at < ${to.toISOString()}`;
+    return { scrapes: s.n, tokens: j.n };
+  }
+
+  async recentScrapes(apiKeyId: string | null, o: { limit: number; before?: string; endpoint?: string }): Promise<ActivityRow[]> {
+    const before = o.before ?? null;
+    const endpoint = o.endpoint ?? null;
+    const rows = await this.sql`
+      select s.id, s.url, s.created_at,
+             case j.type when 'batch' then 'batch_scrape' else coalesce(j.type, 'scrape') end as endpoint
+      from scrapes s left join jobs j on j.id = s.job_id
+      where s.api_key_id is not distinct from ${apiKeyId}
+        and (${before}::timestamptz is null or s.created_at < ${before}::timestamptz)
+        and (${endpoint}::text is null or (case j.type when 'batch' then 'batch_scrape' else coalesce(j.type, 'scrape') end) = ${endpoint}::text)
+      order by s.created_at desc, s.id desc
+      limit ${o.limit}`;
+    return rows.map((r) => ({ id: r.id, endpoint: r.endpoint, createdAt: new Date(r.created_at).toISOString(), url: r.url }));
+  }
+
+  async latestScrapeAt(apiKeyId: string | null): Promise<string | null> {
+    const [r] = await this.sql`
+      select max(created_at) as t from scrapes where api_key_id is not distinct from ${apiKeyId} and (response->>'success') = 'true'`;
+    return r?.t ? new Date(r.t).toISOString() : null;
   }
 
   async close(): Promise<void> {

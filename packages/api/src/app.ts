@@ -8,6 +8,7 @@ import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
 import { registerExtractRoutes } from './routes/extract';
 import { registerSearchRoute } from './routes/search';
+import { registerTeamRoutes } from './routes/team';
 import type { RateLimiter } from './ratelimit';
 import { scrapeAndPersist, type ExtractionDeps } from './scrape-service';
 import { snapshotKey, type SnapshotStore, type Store } from './store/types';
@@ -26,6 +27,7 @@ export interface AppDeps {
   searchMaxScrape?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
   rateLimiter?: RateLimiter | null;
+  team?: { workerConcurrency?: number };
 }
 
 declare module 'fastify' {
@@ -107,6 +109,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerMapRoute(v2, deps);
       registerSearchRoute(v2, deps);
       registerExtractRoutes(v2, deps);
+      registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {
         const rec = UUID.test(req.params.id) ? await deps.store.getScrape(req.params.id) : null;
