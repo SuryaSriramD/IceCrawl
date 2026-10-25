@@ -1,5 +1,10 @@
 import { csvToHtml } from './csv';
 import { rtfToHtml } from './rtf';
+import { docxToHtml } from './docx';
+import { xlsxToHtml } from './xlsx';
+import { pptxToHtml } from './pptx';
+import { odfToHtml } from './odf';
+import { epubToHtml } from './epub';
 import { DEFAULT_LIMITS, DocumentError, type ConvertedDocument, type DocumentKind, type DocumentLimits } from './types';
 
 /** Converts a document to simple HTML. Rejects with a `DocumentError` for files that cannot be read. */
@@ -11,6 +16,18 @@ export async function convertDocument(bytes: Uint8Array, kind: DocumentKind, lim
       return csvToHtml(bytes, l);
     case 'rtf':
       return rtfToHtml(bytes, l);
+    case 'docx':
+      return docxToHtml(bytes, l);
+    case 'xlsx':
+      return xlsxToHtml(bytes, l);
+    case 'pptx':
+      return pptxToHtml(bytes, l);
+    case 'odt':
+    case 'ods':
+    case 'odp':
+      return odfToHtml(bytes, kind, l);
+    case 'epub':
+      return epubToHtml(bytes, l);
     default:
       throw new DocumentError('UNSUPPORTED', `${kind} documents are not supported yet`);
   }
