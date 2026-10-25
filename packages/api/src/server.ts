@@ -18,6 +18,7 @@ const app = buildApp({
   extraction: rt.extraction,
   search: rt.search,
   searchMaxScrape: config.searchMaxScrape,
+  maxUploadBytes: config.maxUploadBytes,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },
   ready: () => rt.ready(),

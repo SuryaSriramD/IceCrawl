@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/app.ts" },
+  "exports": {
+    ".": "./src/app.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
@@ -13,8 +15,10 @@
     "signing:rotate": "tsx src/cli/signing.ts rotate"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.1.6",
     "@icecrawl/core": "workspace:*",
     "@icecrawl/crawler": "workspace:*",
+    "@icecrawl/documents": "workspace:*",
     "@icecrawl/engines": "workspace:*",
     "@icecrawl/extract": "workspace:*",
     "@icecrawl/queue": "workspace:*",
@@ -25,13 +29,14 @@
     "undici": "^6.21.0"
   },
   "devDependencies": {
-    "ajv": "^8.17.1",
-    "ioredis": "^5.10.1",
     "@icecrawl/cli": "workspace:*",
     "@icecrawl/mcp": "workspace:*",
     "@icecrawl/sdk": "workspace:*",
     "@mendable/firecrawl-js": "4.51.0",
     "@modelcontextprotocol/sdk": "~1.32.2",
+    "ajv": "^8.17.1",
+    "fflate": "~0.8.3",
+    "ioredis": "^5.10.1",
     "playwright-core": "^1.64.1",
     "yaml": "^2.6.0"
   }

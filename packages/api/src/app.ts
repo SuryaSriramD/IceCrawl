@@ -6,6 +6,7 @@ import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
+import { registerParseRoutes } from './routes/parse';
 import { registerExtractRoutes } from './routes/extract';
 import { registerSearchRoute } from './routes/search';
 import { registerTeamRoutes } from './routes/team';
@@ -25,6 +26,8 @@ export interface AppDeps {
   extraction?: ExtractionDeps;
   search?: SearchProvider | null;
   searchMaxScrape?: number;
+  /** Largest file accepted by POST /v2/parse, in bytes (default 50 MiB). */
+  maxUploadBytes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
   rateLimiter?: RateLimiter | null;
   team?: { workerConcurrency?: number };
@@ -42,7 +45,6 @@ declare module 'fastify' {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PLANNED: Record<string, number> = {
-  parse: 7,
   interact: 8,
   agent: 8,
   monitor: 9,
@@ -119,6 +121,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerMapRoute(v2, deps);
       registerSearchRoute(v2, deps);
       registerExtractRoutes(v2, deps);
+      registerParseRoutes(v2, deps);
       registerTeamRoutes(v2, { store: deps.store, useAuth: deps.useAuth, workerConcurrency: deps.team?.workerConcurrency });
 
       v2.get<{ Params: { id: string } }>('/scrape/:id', async (req) => {

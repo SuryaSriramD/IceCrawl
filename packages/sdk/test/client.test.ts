@@ -32,6 +32,23 @@ const doc = (url: string) => ({
   trust: { verdict: 'ok', confidence: 0.9, reasons: [], receiptId: 'r1', engine: 'fetch' },
 });
 
+describe('IceCrawl client parse', () => {
+  it('uploads the file and options as multipart and unwraps the document', async () => {
+    let seen: { body: unknown; headers: Record<string, string> } | undefined;
+    const fn = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      seen = { body: init?.body, headers: init?.headers as Record<string, string> };
+      return new Response(JSON.stringify({ success: true, data: doc('upload://x/a.csv') }), { status: 200 });
+    }) as typeof fetch;
+    const ic = new IceCrawl({ apiUrl: 'http://api.test', apiKey: 'k', fetch: fn });
+    const d = await ic.parse({ name: 'a.csv', data: new TextEncoder().encode('a,b\n1,2\n'), type: 'text/csv' }, { onlyMainContent: false });
+    expect(d.trust.receiptId).toBe('r1');
+    expect(seen?.headers['content-type']).toBeUndefined();
+    const form = seen?.body as FormData;
+    expect((form.get('file') as File).name).toBe('a.csv');
+    expect(JSON.parse(String(form.get('options')))).toEqual({ onlyMainContent: false });
+  });
+});
+
 describe('IceCrawl client', () => {
   it('sends the API key and request body and unwraps the scrape document', async () => {
     const { fn, calls } = fakeFetch(() => ({ json: { success: true, data: doc('https://e.com/') } }));

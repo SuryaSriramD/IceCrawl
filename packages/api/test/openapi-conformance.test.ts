@@ -87,6 +87,21 @@ describe.skipIf(!hasOpenApi())('responses conform to the Firecrawl v2 OpenAPI', 
     check('/search', 'post', await call(t, 'POST', '/v2/search', { query: 'q', scrapeOptions: { formats: ['markdown'] } }));
   });
 
+  it('parse', async () => {
+    const t = await setup();
+    const rows = 'Row of the uploaded table with enough words to count as content,12\n'.repeat(20);
+    const send = async (name: string, content: string) => {
+      const form = new FormData();
+      form.append('file', new Blob([content], { type: 'text/csv' }), name);
+      const res = new Response(form);
+      const r = await t.app.inject({ method: 'POST', url: '/v2/parse', headers: { ...t.auth, 'content-type': res.headers.get('content-type') ?? '' }, payload: Buffer.from(await res.arrayBuffer()) });
+      return { status: r.statusCode, body: r.json() };
+    };
+    check('/parse', 'post', await send('table.csv', `name,qty\n${rows}`));
+    check('/parse', 'post', await send('table.exe', 'MZ'));
+    check('/parse/formats', 'get', await call(t, 'GET', '/v2/parse/formats'));
+  });
+
   it('extract', async () => {
     const t = await setup();
     const start = await call(t, 'POST', '/v2/extract', { urls: [`${E}/a`], prompt: 'Find a fact' });

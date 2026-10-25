@@ -19,6 +19,25 @@ import type {
   TrustBlock,
 } from '@icecrawl/core';
 
+/** A file to parse with `IceCrawl.parse`. */
+export interface ParseFile {
+  name: string;
+  data: Uint8Array;
+  /** Defaults to application/octet-stream; the server also goes by the file name and the file's own signature. */
+  type?: string;
+}
+
+export type ParseOptions = Pick<ScrapeOptions, 'formats' | 'onlyMainContent' | 'includeTags' | 'excludeTags' | 'removeBase64Images'>;
+
+export interface ParseFormat {
+  format: string;
+  kind: string;
+  extensions: string[];
+  mimeTypes: string[];
+  available: boolean;
+  note?: string;
+}
+
 export interface IceCrawlOptions {
   apiUrl?: string;
   apiKey?: string;
@@ -62,11 +81,13 @@ export class IceCrawl {
   private send(method: string, path: string, body?: unknown): Promise<Response> {
     const headers: Record<string, string> = { accept: 'application/json' };
     if (this.apiKey) headers.authorization = `Bearer ${this.apiKey}`;
-    if (body !== undefined) headers['content-type'] = 'application/json';
+    // a FormData body sets its own multipart content type (with the boundary)
+    const form = body instanceof FormData;
+    if (body !== undefined && !form) headers['content-type'] = 'application/json';
     return this.fetchImpl(`${this.apiUrl}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
       signal: AbortSignal.timeout(this.timeoutMs),
     });
   }
@@ -107,6 +128,17 @@ export class IceCrawl {
 
   async scrape(url: string, options: ScrapeOptions = {}): Promise<ScrapeDocument> {
     return (await this.json<{ data: ScrapeDocument }>('POST', '/v2/scrape', { ...options, url })).data;
+  }
+
+  /** Uploads a file (pdf, docx, xlsx, pptx, odt, ods, odp, epub, rtf, csv, html, txt) and returns it as a scrape document with a receipt. */
+  async parse(file: ParseFile, options: ParseOptions = {}): Promise<ScrapeDocument> {
+    const form = new FormData();
+    form.append('file', new Blob([Buffer.from(file.data)], { type: file.type ?? 'application/octet-stream' }), file.name);
+    if (Object.keys(options).length > 0) form.append('options', JSON.stringify(options));
+    return (await this.json<{ data: ScrapeDocument }>('POST', '/v2/parse', form)).data;
+  }
+  async getParseFormats(): Promise<ParseFormat[]> {
+    return (await this.json<{ data: { formats: ParseFormat[] } }>('GET', '/v2/parse/formats')).data.formats;
   }
 
   async map(url: string, options: MapOptions = {}): Promise<MapLink[]> {

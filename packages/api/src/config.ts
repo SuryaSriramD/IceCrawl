@@ -91,6 +91,7 @@ export interface AppConfig {
   llmMaxOutputTokens: number;
   searxngUrl?: string;
   searchMaxScrape: number;
+  maxUploadBytes: number;
   extractMaxPages: number;
   rateLimitPerMinute: number;
   jobMaxRuntimeHours: number;
@@ -132,6 +133,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     llmMaxOutputTokens: positiveInt(env, 'ICECRAWL_LLM_MAX_OUTPUT_TOKENS', 4096),
     searxngUrl: loadSearxngUrl(env),
     searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
+    maxUploadBytes: positiveInt(env, 'ICECRAWL_MAX_UPLOAD_BYTES', 50 * 1024 * 1024),
     extractMaxPages: positiveInt(env, 'ICECRAWL_EXTRACT_MAX_PAGES', 20),
     rateLimitPerMinute: nonNegativeInt(env, 'ICECRAWL_RATE_LIMIT_PER_MINUTE', 0),
     jobMaxRuntimeHours: positiveInt(env, 'ICECRAWL_JOB_MAX_RUNTIME_HOURS', 6),

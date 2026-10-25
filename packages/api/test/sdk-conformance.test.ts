@@ -76,6 +76,14 @@ describe('the official @mendable/firecrawl-js SDK against IceCrawl', () => {
     expect(r.web?.[0]).toMatchObject({ url: `${E}/a`, title: 'Page A' });
   });
 
+  it('parse turns an uploaded file into a document and lists the formats', async () => {
+    const rows = 'Row of the uploaded table with enough words to count as content,12\n'.repeat(20);
+    const doc = await app.parse({ data: Buffer.from(`name,qty\n${rows}`), filename: 'table.csv', contentType: 'text/csv' }, { formats: ['markdown'] });
+    expect(doc.markdown).toContain('| name | qty |');
+    const formats = await app.getParseFormats();
+    expect(formats.find((f) => f.format === 'pdf')?.available).toBe(true);
+  });
+
   it('extract returns the extracted data', async () => {
     const r = await whileQueued(app.extract({ urls: [`${E}/a`], prompt: 'Find a fact', schema: { type: 'object', properties: { fact: { type: 'string' } } }, pollInterval: 1, timeout: 30 }));
     expect(r.status).toBe('completed');
