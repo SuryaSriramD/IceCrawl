@@ -14,7 +14,7 @@ export interface VerifyInput {
   publicKeys: PublicKeyEntry[];
   html: Uint8Array | null;
   screenshot: Uint8Array | null;
-  replay?: (html: Uint8Array) => ReplayResult;
+  replay?: (html: Uint8Array) => ReplayResult | Promise<ReplayResult>;
 }
 
 export interface VerifyReport {
@@ -41,7 +41,7 @@ function hashCheck(label: string, expected: string | null | undefined, bytes: Ui
 const sameScan = (a: ScanSummary, b: ScanSummary) =>
   a.flagged === b.flagged && a.highest === b.highest && a.count === b.count;
 
-export function verifyReceipt(i: VerifyInput): VerifyReport {
+export async function verifyReceipt(i: VerifyInput): Promise<VerifyReport> {
   const { receipt, signature } = i.signed;
 
   let sig: Check;
@@ -61,7 +61,7 @@ export function verifyReceipt(i: VerifyInput): VerifyReport {
   const screenshot = hashCheck('screenshot hash', receipt.screenshotSha256, i.screenshot);
 
   const canReplay = Boolean(i.replay && i.html && html.status !== 'fail');
-  const replayed = canReplay ? i.replay!(i.html!) : null;
+  const replayed = canReplay ? await i.replay!(i.html!) : null;
 
   let replay: Check;
   if (!i.replay) replay = check('skipped', 'replay not requested');

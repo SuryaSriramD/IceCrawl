@@ -2,7 +2,7 @@ import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import TurndownService from 'turndown';
 
-export const CONVERTER = { name: 'icecrawl-convert', version: '2' } as const;
+export const CONVERTER = { name: 'icecrawl-convert', version: '3' } as const;
 
 export interface ConvertOptions {
   url: string;
@@ -28,6 +28,20 @@ const turndown = new TurndownService({
   emDelimiter: '*',
 });
 turndown.remove(['script', 'style']);
+// turndown has no table support of its own; tables become GFM pipe tables (first row is the header)
+turndown.addRule('table', {
+  filter: 'table',
+  replacement: (_content, node) => {
+    const cell = (c: Element) => (c.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+    const rows = Array.from((node as Element).querySelectorAll('tr'))
+      .map((tr) => Array.from(tr.children).filter((c) => /^T[DH]$/i.test(c.nodeName)).map(cell))
+      .filter((r) => r.length > 0);
+    if (rows.length === 0) return '';
+    const width = Math.max(...rows.map((r) => r.length));
+    const line = (r: string[]) => `| ${[...r, ...Array<string>(width - r.length).fill('')].join(' | ')} |`;
+    return `\n\n${[line(rows[0]), line(Array<string>(width).fill('---')), ...rows.slice(1).map(line)].join('\n')}\n\n`;
+  },
+});
 
 function toMarkdown(html: string, removeBase64: boolean): string {
   let md = turndown.turndown(html);

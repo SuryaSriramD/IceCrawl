@@ -102,7 +102,7 @@ describe('convertHtml: the page heading under onlyMainContent', () => {
     expect(c.cleanHtml).not.toContain('<b>');
   });
 
-  it('is version 2 of the converter, so receipts made before this change report their replay as skipped', () => {
-    expect(CONVERTER).toEqual({ name: 'icecrawl-convert', version: '2' });
+  it('is version 3 of the converter, so receipts made before this change report their replay as skipped', () => {
+    expect(CONVERTER).toEqual({ name: 'icecrawl-convert', version: '3' });
   });
 });

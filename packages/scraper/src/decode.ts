@@ -14,7 +14,7 @@ export function decodeBody(bytes: Uint8Array, contentType: string): string {
   }
 }
 
-export type ContentKind = 'html' | 'text' | 'json' | 'unsupported';
+export type ContentKind = 'html' | 'text' | 'json' | 'document' | 'unsupported';
 
 export function contentKind(contentType: string, bytes: Uint8Array): ContentKind {
   const ct = contentType.split(';')[0].trim().toLowerCase();

@@ -148,7 +148,7 @@ async function scrape(ctx: EngineContext): Promise<EngineResult> {
 export const fetchEngine: Engine = {
   name: 'fetch',
   quality: 5,
-  features: featureSet(['skipTlsVerification']),
+  features: featureSet(['skipTlsVerification', 'pdf', 'document']),
   maxReasonableTimeMs: 15_000,
   scrape,
 };

@@ -1,7 +1,7 @@
 import type { ScrapeRequest } from '@icecrawl/core';
+import { detectDocumentKind } from '@icecrawl/documents';
 import type { FeatureFlag } from '@icecrawl/engines';
 
-const DOCUMENT_EXT = /\.(docx?|xlsx?|pptx?|odt|ods|odp|rtf)$/i;
 
 export function buildFeatureFlags(request: ScrapeRequest): Set<FeatureFlag> {
   const flags = new Set<FeatureFlag>();
@@ -25,8 +25,8 @@ export function buildFeatureFlags(request: ScrapeRequest): Set<FeatureFlag> {
   } catch {
     // URL was validated upstream; ignore here
   }
-  if (DOCUMENT_EXT.test(pathname)) flags.add('document');
-  else if (/\.pdf$/i.test(pathname)) flags.add('pdf');
+  if (/\.pdf$/i.test(pathname)) flags.add('pdf');
+  else if (detectDocumentKind({ filename: pathname })) flags.add('document');
 
   return flags;
 }

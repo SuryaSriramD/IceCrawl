@@ -230,6 +230,9 @@ importers:
       '@icecrawl/core':
         specifier: workspace:*
         version: link:../core
+      '@icecrawl/documents':
+        specifier: workspace:*
+        version: link:../documents
       '@icecrawl/engines':
         specifier: workspace:*
         version: link:../engines
@@ -249,6 +252,9 @@ importers:
       '@types/turndown':
         specifier: ^5.0.5
         version: 5.0.6
+      fflate:
+        specifier: ~0.8.3
+        version: 0.8.3
 
   packages/sdk:
     dependencies:

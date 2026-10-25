@@ -12,7 +12,7 @@ export async function verifyReceiptRemote(client: IceCrawl, receiptId: string): 
     client.getSnapshot(receiptId),
     client.getScreenshot(receiptId),
   ]);
-  return verifyReceipt({
+  return await verifyReceipt({
     signed,
     publicKeys,
     html,

@@ -9,8 +9,8 @@ const html = Buffer.from(
 );
 const key = generateSigningKey();
 
-function makeReceipt() {
-  const rendered = renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
+async function makeReceipt() {
+  const rendered = await renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
   const scan = summarizeScan(scanForInjection({ html: rendered.text, markdown: rendered.markdown }));
   const receipt = buildReceipt({
     id: '33333333-3333-4333-8333-333333333333',
@@ -43,7 +43,7 @@ function client(parts: { receipt: unknown; signature: unknown; snapshot: Uint8Ar
 
 describe('verifyReceiptRemote', () => {
   it('passes signature, snapshot, replay and scan for an untouched scrape', async () => {
-    const { receipt, signature } = makeReceipt();
+    const { receipt, signature } = await makeReceipt();
     const r = await verifyReceiptRemote(client({ receipt, signature, snapshot: html }), receipt.id);
     expect(r.signature.status).toBe('pass');
     expect(r.html.status).toBe('pass');
@@ -54,7 +54,7 @@ describe('verifyReceiptRemote', () => {
   });
 
   it('fails when the snapshot was altered', async () => {
-    const { receipt, signature } = makeReceipt();
+    const { receipt, signature } = await makeReceipt();
     const tampered = Buffer.from(html);
     tampered[20] ^= 1;
     const r = await verifyReceiptRemote(client({ receipt, signature, snapshot: tampered }), receipt.id);
@@ -63,7 +63,7 @@ describe('verifyReceiptRemote', () => {
   });
 
   it('fails when the receipt was edited after signing (including its scan result)', async () => {
-    const { receipt, signature } = makeReceipt();
+    const { receipt, signature } = await makeReceipt();
     const forged = { ...receipt, scan: { ...receipt.scan!, flagged: false, highest: null, count: 0 } };
     const r = await verifyReceiptRemote(client({ receipt: forged, signature, snapshot: html }), receipt.id);
     expect(r.signature.status).toBe('fail');
@@ -72,7 +72,7 @@ describe('verifyReceiptRemote', () => {
   });
 
   it('skips snapshot-based checks when the snapshot is gone', async () => {
-    const { receipt, signature } = makeReceipt();
+    const { receipt, signature } = await makeReceipt();
     const r = await verifyReceiptRemote(client({ receipt, signature, snapshot: null }), receipt.id);
     expect(r.html.status).toBe('skipped');
     expect(r.replay.status).toBe('skipped');

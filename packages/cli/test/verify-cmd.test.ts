@@ -11,7 +11,7 @@ const key = generateSigningKey();
 
 async function makeReceipt() {
   const { renderBody, CONVERTER } = await import('@icecrawl/scraper');
-  const rendered = renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
+  const rendered = await renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
   const receipt = buildReceipt({
     id: '22222222-2222-4222-8222-222222222222',
     requestedUrl: 'https://example.com/',

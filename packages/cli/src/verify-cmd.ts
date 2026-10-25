@@ -98,7 +98,7 @@ export async function runVerify(args: string[], io: VerifyIo): Promise<number> {
     return 2;
   }
 
-  const report = verifyReceipt({
+  const report = await verifyReceipt({
     signed,
     publicKeys,
     html,

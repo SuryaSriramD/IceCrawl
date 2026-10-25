@@ -3,14 +3,14 @@ import { scanForInjection, summarizeScan, type ReplayResult } from '@icecrawl/tr
 import { CONVERTER } from './convert';
 import { renderBody } from './render';
 
-export function replayMarkdown(receipt: Receipt, htmlBytes: Uint8Array): ReplayResult {
+export async function replayMarkdown(receipt: Receipt, htmlBytes: Uint8Array): Promise<ReplayResult> {
   if (receipt.converter.name !== CONVERTER.name || receipt.converter.version !== CONVERTER.version) {
     return {
       unavailable: `receipt used ${receipt.converter.name}@${receipt.converter.version}, this build has ${CONVERTER.name}@${CONVERTER.version}`,
     };
   }
   if (!receipt.contentType) return { unavailable: 'receipt does not record the content type (made before replay support)' };
-  const r = renderBody(htmlBytes, receipt.contentType, receipt.finalUrl, {
+  const r = await renderBody(htmlBytes, receipt.contentType, receipt.finalUrl, {
     onlyMainContent: receipt.options.onlyMainContent,
     includeTags: receipt.options.includeTags,
     excludeTags: receipt.options.excludeTags,

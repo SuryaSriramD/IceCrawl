@@ -235,8 +235,8 @@ describe('verify_receipt tool', () => {
   const html = Buffer.from(`<html><head><title>V</title></head><body><article><h1>Verify</h1>${'<p>Readable words for the converter to keep. </p>'.repeat(12)}</article></body></html>`);
   const key = generateSigningKey();
 
-  function receiptApi(snapshot: Uint8Array) {
-    const rendered = renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
+  async function receiptApi(snapshot: Uint8Array) {
+    const rendered = await renderBody(html, 'text/html', 'https://example.com/', { onlyMainContent: true, removeBase64Images: true });
     const receipt = buildReceipt({
       id: '44444444-4444-4444-8444-444444444444',
       requestedUrl: 'https://example.com/',
@@ -262,7 +262,7 @@ describe('verify_receipt tool', () => {
   }
 
   it('verifies an untouched receipt', async () => {
-    const { client } = receiptApi(html);
+    const { client } = await receiptApi(html);
     const { mcp, close } = await connect(client);
     const r = await mcp.callTool({ name: 'icecrawl_verify_receipt', arguments: { receiptId: '44444444-4444-4444-8444-444444444444' } });
     expect(r.isError).toBeFalsy();
@@ -275,7 +275,7 @@ describe('verify_receipt tool', () => {
   it('reports a tampered snapshot as an error', async () => {
     const bad = Buffer.from(html);
     bad[30] ^= 1;
-    const { client } = receiptApi(bad);
+    const { client } = await receiptApi(bad);
     const { mcp, close } = await connect(client);
     const r = await mcp.callTool({ name: 'icecrawl_verify_receipt', arguments: { receiptId: '44444444-4444-4444-8444-444444444444' } });
     expect(r.isError).toBe(true);

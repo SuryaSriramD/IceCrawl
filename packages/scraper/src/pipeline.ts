@@ -75,10 +75,11 @@ interface Analyzed {
   title: string | null;
   description: string | null;
   language: string | null;
+  warnings: string[];
 }
 
-function analyze(engine: string, result: EngineResult, n: NormalizedScrape): Analyzed {
-  const { kind, text, markdown, cleanHtml, links, title, description, language } = renderBody(
+async function analyze(engine: string, result: EngineResult, n: NormalizedScrape): Promise<Analyzed> {
+  const { kind, text, markdown, cleanHtml, links, title, description, language, warnings, unreadable } = await renderBody(
     result.body,
     result.contentType,
     result.finalUrl,
@@ -96,10 +97,10 @@ function analyze(engine: string, result: EngineResult, n: NormalizedScrape): Ana
     html: kind === 'html' ? text : '',
     markdown,
     truncated: result.truncated,
-    unsupportedContentType: kind === 'unsupported' ? result.contentType || 'unknown' : undefined,
+    unsupportedContentType: kind === 'unsupported' ? `${result.contentType || 'unknown'}${unreadable ? ` (${unreadable})` : ''}` : undefined,
   });
 
-  return { engine, result, ...c, markdown, cleanHtml, rawHtml: text, links, title, description, language };
+  return { engine, result, ...c, markdown, cleanHtml, rawHtml: text, links, title, description, language, warnings };
 }
 
 export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<ScrapeRun> {
@@ -151,7 +152,7 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
       continue;
     }
 
-    const analyzed = analyze(pick.engine.name, result, n);
+    const analyzed = await analyze(pick.engine.name, result, n);
     attempts.push({
       engine: analyzed.engine,
       verdict: analyzed.verdict,
@@ -216,6 +217,6 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     actions: last.result.actions ?? null,
     injection,
     quarantined: mode === 'quarantine' && injection?.highest === 'high',
-    warnings,
+    warnings: [...warnings, ...last.warnings],
   };
 }
