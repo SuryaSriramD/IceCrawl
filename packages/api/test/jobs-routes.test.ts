@@ -170,11 +170,11 @@ describe('GET /v2/crawl/:id/errors and /v2/crawl/active', () => {
     expect((await get(t, '/v2/crawl/active')).json().crawls).toEqual([]);
   });
 
-  it('answers 501 for crawl params-preview (needs an LLM, phase 5)', async () => {
+  it('answers 501 for crawl params-preview (not implemented)', async () => {
     const t = await makeJobsApp();
     const res = await post(t, '/v2/crawl/params-preview', { url: `${E}/`, prompt: 'blog' });
     expect(res.statusCode).toBe(501);
-    expect(res.json().error).toContain('phase 5');
+    expect(res.json().error).toContain('not implemented');
   });
 });
 

@@ -68,7 +68,7 @@ export function normalizeCrawlRequest(input: unknown): NormalizedCrawl {
   const warnings = [...normalizeScrapeRequest({ ...scrapeOptions, url: request.url }).warnings];
   const extras = unknownKeys(input, CRAWL_KEYS);
   if (extras.length > 0) warnings.push(`Ignored unsupported options: ${extras.join(', ')}.`);
-  if (request.prompt) warnings.push('`prompt` is ignored until natural-language crawl options are implemented (phase 5).');
+  if (request.prompt) warnings.push('`prompt` is ignored: natural-language crawl options are not implemented yet.');
   if (request.zeroDataRetention) warnings.push('`zeroDataRetention` is not supported; results are stored.');
   return { request, scrapeOptions, warnings };
 }

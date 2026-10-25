@@ -1,3 +1,47 @@
+export interface LlmSettings {
+  provider: 'openai' | 'anthropic';
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+  timeoutMs: number;
+}
+
+function positiveInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`${name} must be a positive integer (got "${raw}")`);
+  return n;
+}
+
+function loadLlm(env: NodeJS.ProcessEnv): LlmSettings | null {
+  const provider = env.ICECRAWL_LLM_PROVIDER;
+  if (!provider) return null;
+  if (provider !== 'openai' && provider !== 'anthropic') {
+    throw new Error(`ICECRAWL_LLM_PROVIDER must be openai or anthropic (got "${provider}")`);
+  }
+  const model = env.ICECRAWL_LLM_MODEL;
+  if (!model) throw new Error('ICECRAWL_LLM_MODEL is required when ICECRAWL_LLM_PROVIDER is set');
+  const apiKey = env.ICECRAWL_LLM_API_KEY || undefined;
+  const baseUrl = env.ICECRAWL_LLM_BASE_URL || undefined;
+  if (!apiKey && !(provider === 'openai' && baseUrl)) {
+    throw new Error('ICECRAWL_LLM_API_KEY is required (only an OpenAI-compatible server with ICECRAWL_LLM_BASE_URL may omit it)');
+  }
+  return { provider, model, ...(apiKey ? { apiKey } : {}), ...(baseUrl ? { baseUrl } : {}), timeoutMs: positiveInt(env, 'ICECRAWL_LLM_TIMEOUT_MS', 120_000) };
+}
+
+function loadSearxngUrl(env: NodeJS.ProcessEnv): string | undefined {
+  const raw = env.ICECRAWL_SEARXNG_URL;
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return raw;
+  } catch {
+    // falls through to the error below
+  }
+  throw new Error(`ICECRAWL_SEARXNG_URL must be an http(s) URL (got "${raw}")`);
+}
+
 export interface AppConfig {
   port: number;
   databaseUrl: string;
@@ -23,6 +67,12 @@ export interface AppConfig {
   maxCrawlLimit: number;
   allowIgnoreRobots: boolean;
   publicUrl?: string;
+  llm: LlmSettings | null;
+  llmMaxInputChars: number;
+  llmMaxOutputTokens: number;
+  searxngUrl?: string;
+  searchMaxScrape: number;
+  extractMaxPages: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -55,5 +105,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     maxCrawlLimit: Number(env.ICECRAWL_MAX_CRAWL_LIMIT ?? 100_000),
     allowIgnoreRobots: env.ICECRAWL_ALLOW_IGNORE_ROBOTS === 'true',
     publicUrl: env.ICECRAWL_PUBLIC_URL || undefined,
+    llm: loadLlm(env),
+    llmMaxInputChars: positiveInt(env, 'ICECRAWL_LLM_MAX_INPUT_CHARS', 100_000),
+    llmMaxOutputTokens: positiveInt(env, 'ICECRAWL_LLM_MAX_OUTPUT_TOKENS', 4096),
+    searxngUrl: loadSearxngUrl(env),
+    searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
+    extractMaxPages: positiveInt(env, 'ICECRAWL_EXTRACT_MAX_PAGES', 20),
   };
 }

@@ -2,7 +2,8 @@ import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { ScraperConfig } from '@icecrawl/scraper';
 import { buildApp } from '../src/app';
 import { randomUUID } from 'node:crypto';
-import { featureSet, type Engine } from '@icecrawl/engines';
+import { featureSet, type Engine, type SearchProvider } from '@icecrawl/engines';
+import type { ExtractionDeps } from '../src/scrape-service';
 import type { Fetcher } from '@icecrawl/crawler';
 import { MemoryQueues, type JobContext } from '@icecrawl/queue';
 import { processScrapeJob, type JobDeps } from '../src/jobs/processor';
@@ -126,9 +127,14 @@ export async function drain(deps: JobDeps, queues: MemoryQueues, o: { maxAttempt
 }
 
 export async function makeJobsApp(
-  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig> } = {},
+  over: { site?: Site; files?: Parameters<typeof fakeFetcher>[0]; useAuth?: boolean; jobs?: Partial<import('../src/routes/jobs').JobsDeps>; allowIgnoreRobots?: boolean; signer?: PrivateSigningKey; scraper?: Partial<ScraperConfig>; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; extractMaxPages?: number } = {},
 ) {
-  const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false });
+  const { deps, store, queues, calls } = makeJobDeps({ site: over.site, files: over.files, allowIgnoreRobots: over.allowIgnoreRobots ?? false,
+    extraction: over.extraction,
+    search: over.search,
+    extractMaxPages: over.extractMaxPages,
+    ...(over.scraper ? { scraper: { allowPrivateNetworks: false, maxResponseBytes: 1_000_000, strict: false, ...over.scraper } } : {}),
+  });
   const keyId = randomUUID();
   await store.createApiKey({ id: keyId, hash: sha256Hex('ic-jobs'), name: 'jobs' });
   const app = buildApp({
@@ -137,6 +143,9 @@ export async function makeJobsApp(
     engines: deps.engines,
     scraper: { ...deps.scraper, ...over.scraper },
     signer: over.signer,
+    extraction: over.extraction,
+    search: over.search,
+    searchMaxScrape: over.searchMaxScrape,
     useAuth: over.useAuth ?? true,
     map: { fetcher: deps.fetcher },
     jobs: {

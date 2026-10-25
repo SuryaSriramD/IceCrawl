@@ -35,6 +35,9 @@ importers:
       '@icecrawl/engines':
         specifier: workspace:*
         version: link:../engines
+      '@icecrawl/extract':
+        specifier: workspace:*
+        version: link:../extract
       '@icecrawl/queue':
         specifier: workspace:*
         version: link:../queue

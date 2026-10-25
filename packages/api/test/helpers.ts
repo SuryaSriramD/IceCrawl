@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { featureSet, type Engine, type EngineResult } from '@icecrawl/engines';
+import { featureSet, type Engine, type EngineResult, type SearchProvider } from '@icecrawl/engines';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import { buildApp } from '../src/app';
+import type { ExtractionDeps } from '../src/scrape-service';
 import { MemorySnapshotStore, MemoryStore } from '../src/store/memory';
 
 export const article = `<article><h1>Hello world</h1>${'<p>Some real content about things that matter. </p>'.repeat(30)}</article>`;
@@ -27,7 +28,7 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
 }
 
 export async function makeApp(
-  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey } = {},
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number } = {},
 ) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
@@ -40,6 +41,9 @@ export async function makeApp(
     scraper: { allowPrivateNetworks: false, maxResponseBytes: 1_000_000, strict: opts.strict ?? false, injection: opts.injection },
     useAuth: opts.useAuth ?? true,
     signer: opts.signer,
+    extraction: opts.extraction,
+    search: opts.search,
+    searchMaxScrape: opts.searchMaxScrape,
   });
   return { app, store, snapshots, keyId, auth: { authorization: 'Bearer ic-test' } };
 }

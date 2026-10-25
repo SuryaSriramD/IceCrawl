@@ -10,11 +10,11 @@ import {
   type Fetcher,
   type RobotsRules,
 } from '@icecrawl/crawler';
-import type { Engine } from '@icecrawl/engines';
+import type { Engine, SearchProvider } from '@icecrawl/engines';
 import type { JobContext, JobQueues, PageJobData, ScrapeJobData } from '@icecrawl/queue';
 import type { ScraperConfig } from '@icecrawl/scraper';
 import type { PrivateSigningKey } from '@icecrawl/trust';
-import { scrapeAndPersist } from '../scrape-service';
+import { scrapeAndPersist, type ExtractionDeps } from '../scrape-service';
 import type { JobRecord, SnapshotStore, Store } from '../store/types';
 import { sendWebhook } from './webhooks';
 
@@ -31,6 +31,9 @@ export interface JobDeps {
   maxCrawlDelaySeconds?: number;
   // shortcut: robots rules are cached per worker process; upgrade by caching in Redis so workers share them.
   robotsCache?: Map<string, { rules: RobotsRules; at: number }>;
+  extraction?: ExtractionDeps;
+  search?: SearchProvider | null;
+  extractMaxPages?: number;
 }
 
 const DEFAULT_UA = 'IceCrawl';

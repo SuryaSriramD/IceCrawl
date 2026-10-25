@@ -1,4 +1,5 @@
-import { createPlaywrightEngine, fetchEngine, type Engine, type PlaywrightEngine } from '@icecrawl/engines';
+import { createPlaywrightEngine, createSearxngProvider, fetchEngine, type Engine, type PlaywrightEngine, type SearchProvider } from '@icecrawl/engines';
+import { createLlmClient } from '@icecrawl/extract';
 import { BullQueues } from '@icecrawl/queue';
 import type { PrivateSigningKey } from '@icecrawl/trust';
 import type postgres from 'postgres';
@@ -6,6 +7,7 @@ import type { AppConfig } from './config';
 import { makeFetcher } from './jobs/fetcher';
 import type { JobDeps } from './jobs/processor';
 import type { DeliveryDeps } from './jobs/webhooks';
+import type { ExtractionDeps } from './scrape-service';
 import { loadOrCreateSigningKey } from './signing';
 import { migrate } from './store/migrate';
 import { PgStore, createSql } from './store/pg';
@@ -23,6 +25,8 @@ export interface Runtime {
   queues: BullQueues;
   jobDeps: JobDeps;
   delivery: DeliveryDeps;
+  extraction: ExtractionDeps;
+  search: SearchProvider | null;
   close(): Promise<void>;
 }
 
@@ -50,6 +54,12 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     strict: config.strict,
     injection: config.injection,
   };
+  const extraction: ExtractionDeps = {
+    llm: config.llm ? createLlmClient(config.llm) : null,
+    maxInputChars: config.llmMaxInputChars,
+    maxOutputTokens: config.llmMaxOutputTokens,
+  };
+  const search = config.searxngUrl ? createSearxngProvider({ baseUrl: config.searxngUrl }) : null;
   const jobDeps: JobDeps = {
     store,
     snapshots,
@@ -59,6 +69,9 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     queues,
     fetcher: makeFetcher({ allowPrivateNetworks: config.allowPrivateNetworks }),
     allowIgnoreRobots: config.allowIgnoreRobots,
+    extraction,
+    search,
+    extractMaxPages: config.extractMaxPages,
   };
 
   return {
@@ -70,6 +83,8 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     browser,
     queues,
     jobDeps,
+    extraction,
+    search,
     delivery: { secret: webhookSecret, allowPrivate: config.allowPrivateNetworks },
     async close() {
       await queues.close();

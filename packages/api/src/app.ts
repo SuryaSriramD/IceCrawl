@@ -1,12 +1,12 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { IceCrawlError, normalizeScrapeRequest, type SignedReceipt } from '@icecrawl/core';
-import type { Engine } from '@icecrawl/engines';
+import type { Engine, SearchProvider } from '@icecrawl/engines';
 import type { ScraperConfig } from '@icecrawl/scraper';
 import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
-import { scrapeAndPersist } from './scrape-service';
+import { scrapeAndPersist, type ExtractionDeps } from './scrape-service';
 import { snapshotKey, type SnapshotStore, type Store } from './store/types';
 
 export interface AppDeps {
@@ -18,6 +18,9 @@ export interface AppDeps {
   signer?: PrivateSigningKey;
   jobs?: JobsDeps;
   map?: Pick<MapDeps, 'fetcher'>;
+  extraction?: ExtractionDeps;
+  search?: SearchProvider | null;
+  searchMaxScrape?: number;
 }
 
 declare module 'fastify' {

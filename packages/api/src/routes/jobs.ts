@@ -123,7 +123,7 @@ export function registerJobRoutes(v2: FastifyInstance, deps: { store: Store; use
   });
 
   v2.post('/crawl/params-preview', async () => {
-    throw new IceCrawlError('NOT_IMPLEMENTED', '/v2/crawl/params-preview needs an LLM and is planned for phase 5 of the IceCrawl roadmap.');
+    throw new IceCrawlError('NOT_IMPLEMENTED', '/v2/crawl/params-preview is not implemented yet.');
   });
 
   v2.get<{ Params: { id: string }; Querystring: { skip?: string } }>('/crawl/:id', async (req) =>

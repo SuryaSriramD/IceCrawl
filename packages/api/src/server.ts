@@ -15,6 +15,9 @@ const app = buildApp({
   useAuth: config.useAuth,
   signer: rt.signer,
   map: { fetcher: rt.jobDeps.fetcher },
+  extraction: rt.extraction,
+  search: rt.search,
+  searchMaxScrape: config.searchMaxScrape,
   jobs: {
     queues: rt.queues,
     publicUrl: config.publicUrl,
@@ -41,5 +44,5 @@ process.on('SIGTERM', shutdown);
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 console.log(
-  `IceCrawl listening on :${config.port} (auth ${config.useAuth ? 'on' : 'off'}, engines ${rt.engines.map((e) => e.name).join(' > ')}, signing key ${rt.signer.keyId}, worker ${config.runWorker ? 'in-process' : 'external'})`,
+  `IceCrawl listening on :${config.port} (auth ${config.useAuth ? 'on' : 'off'}, engines ${rt.engines.map((e) => e.name).join(' > ')}, signing key ${rt.signer.keyId}, worker ${config.runWorker ? 'in-process' : 'external'}, model ${rt.extraction.llm ? `${rt.extraction.llm.provider}/${rt.extraction.llm.model}` : 'none'}, search ${rt.search ? rt.search.name : 'none'})`,
 );
