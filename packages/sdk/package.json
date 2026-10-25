@@ -1,12 +1,46 @@
 {
   "name": "@icecrawl/sdk",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Typed client for the IceCrawl API (Firecrawl v2 compatible) with receipt verification.",
+  "license": "Apache-2.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./verify": "./src/verify.ts" },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./verify": "./src/verify.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
   "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "linkedom": "^0.18.5",
+    "turndown": "^7.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
     "@icecrawl/core": "workspace:*",
     "@icecrawl/scraper": "workspace:*",
     "@icecrawl/trust": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./verify": {
+        "types": "./dist/verify.d.ts",
+        "import": "./dist/verify.js"
+      }
+    }
   }
 }

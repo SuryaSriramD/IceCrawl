@@ -9,10 +9,12 @@
     "typecheck": "tsc --noEmit",
     "db:up": "docker compose up -d postgres redis",
     "dev": "pnpm --filter @icecrawl/api dev",
+    "build": "pnpm --filter @icecrawl/sdk --filter @icecrawl/mcp --filter @icecrawl/cli run build",
     "bench:verdicts": "pnpm --filter @icecrawl/fixtures bench:verdicts"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

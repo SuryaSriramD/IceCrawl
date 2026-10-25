@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Runs the TypeScript sources through tsx until the package is built and published (phase 6).
-import { register } from 'tsx/esm/api';
+// Published package: runs the built dist/cli.js. In the repository there is no build yet, so the TypeScript sources run through tsx.
+import { existsSync } from 'node:fs';
 
-register();
-const { main } = await import('../src/main.ts');
-main(process.argv.slice(2), process.env).catch((err) => {
-  console.error(`icecrawl-mcp failed to start: ${err.message}`);
-  process.exit(1);
-});
+const built = new URL('../dist/cli.js', import.meta.url);
+if (existsSync(built)) {
+  await import(built.href);
+} else {
+  const { register } = await import('tsx/esm/api');
+  register();
+  await import('../src/cli.ts');
+}

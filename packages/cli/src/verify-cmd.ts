@@ -1,5 +1,5 @@
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt } from '@icecrawl/core';
-import { replayMarkdown } from '@icecrawl/scraper';
+import { replayMarkdown } from '@icecrawl/scraper/replay';
 import { verifyReceipt, type Check } from '@icecrawl/trust';
 
 export interface VerifyIo {

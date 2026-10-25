@@ -1,18 +1,49 @@
 {
   "name": "@icecrawl/mcp",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "MCP server for IceCrawl: scrape, crawl, search and extract for Claude and Codex, with untrusted-content handling.",
+  "license": "Apache-2.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "bin": { "icecrawl-mcp": "./bin/icecrawl-mcp.mjs" },
-  "scripts": { "start": "node bin/icecrawl-mcp.mjs" },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "icecrawl-mcp": "./bin/icecrawl-mcp.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/icecrawl-mcp.mjs",
+    "build": "tsup"
+  },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "~1.32.2",
+    "@mozilla/readability": "^0.5.0",
+    "linkedom": "^0.18.5",
+    "turndown": "^7.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
     "@icecrawl/core": "workspace:*",
     "@icecrawl/scraper": "workspace:*",
     "@icecrawl/sdk": "workspace:*",
     "@icecrawl/trust": "workspace:*",
-    "@modelcontextprotocol/sdk": "~1.32.2",
-    "tsx": "^4.19.0",
-    "zod": "^3.25.0"
+    "tsx": "^4.19.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   }
 }

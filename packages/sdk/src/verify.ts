@@ -1,4 +1,4 @@
-import { replayMarkdown } from '@icecrawl/scraper';
+import { replayMarkdown } from '@icecrawl/scraper/replay';
 import { verifyReceipt, type VerifyReport } from '@icecrawl/trust';
 import type { IceCrawl } from './client';
 

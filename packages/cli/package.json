@@ -1,13 +1,40 @@
 {
   "name": "@icecrawl/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Verify IceCrawl receipts: signature, snapshot hashes, converter and scanner replay.",
+  "license": "Apache-2.0",
   "type": "module",
-  "exports": { ".": "./src/verify-cmd.ts" },
-  "scripts": { "icecrawl": "tsx src/bin.ts" },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "exports": {
+    ".": "./src/verify-cmd.ts"
+  },
+  "bin": {
+    "icecrawl": "./bin/icecrawl.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "icecrawl": "tsx src/bin.ts"
+  },
   "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "linkedom": "^0.18.5",
+    "turndown": "^7.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
     "@icecrawl/core": "workspace:*",
     "@icecrawl/scraper": "workspace:*",
     "@icecrawl/trust": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
