@@ -102,6 +102,8 @@ export interface EngineAttempt {
   statusCode?: number;
   durationMs: number;
   error?: string;
+  /** The operator proxy tier the attempt went through; absent for a direct connection. */
+  proxyTier?: 'enhanced' | 'stealth';
 }
 
 export interface ReceiptOptions {

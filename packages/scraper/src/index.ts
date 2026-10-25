@@ -4,3 +4,4 @@ export * from './convert';
 export * from './pipeline';
 export * from './render';
 export * from './replay';
+export * from './throttle';

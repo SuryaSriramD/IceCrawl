@@ -70,3 +70,20 @@ describe('loadConfig operations settings', () => {
     expect(() => loadConfig({ ICECRAWL_LOG_LEVEL: 'loud' })).toThrow(/ICECRAWL_LOG_LEVEL/);
   });
 });
+
+describe('loadConfig files and proxies', () => {
+  it('has no proxies and a 50 MiB upload limit by default', () => {
+    const c = loadConfig({});
+    expect(c.proxiesEnhanced).toEqual([]);
+    expect(c.proxiesStealth).toEqual([]);
+    expect(c.maxUploadBytes).toBe(50 * 1024 * 1024);
+    expect(c.proxyDomainIntervalMs).toBe(1000);
+  });
+  it('reads proxy pools and rejects bad entries without echoing credentials', () => {
+    const c = loadConfig({ ICECRAWL_PROXIES_STEALTH: 'http://u:p@proxy.example:8080,http://p2.example:80', ICECRAWL_PROXY_DOMAIN_INTERVAL_MS: '0' });
+    expect(c.proxiesStealth).toHaveLength(2);
+    expect(c.proxyDomainIntervalMs).toBe(0);
+    expect(() => loadConfig({ ICECRAWL_PROXIES_ENHANCED: 'socks5://u:hunter2@h:1' })).toThrow(/ICECRAWL_PROXIES_ENHANCED entry 1/);
+    expect(() => loadConfig({ ICECRAWL_PROXIES_ENHANCED: 'http://10.0.0.1:3128' })).toThrow(/private/);
+  });
+});

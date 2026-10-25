@@ -120,6 +120,10 @@ const site = await ic.crawl('https://docs.example.com', { limit: 20 });         
 const report = await verifyReceiptRemote(ic, doc.trust.receiptId);
 ```
 
+## Parse files and proxies
+
+`POST /v2/parse` turns an uploaded pdf, docx, xlsx, pptx, odt, ods, odp, epub, rtf, csv, html or txt file into markdown with a signed receipt, and URLs that point at such files are read the same way. `proxy: auto` retries a blocked or captcha page through operator-supplied proxy pools. Details, limits and security notes: [docs/stealth.md](docs/stealth.md).
+
 ## Search
 
 `POST /v2/search` follows Firecrawl's v2 request and response (`query`, `limit`, `sources` web/news/images, `categories` developer/research/pdf, `tbs` day/week/month/year, `includeDomains` or `excludeDomains`, `safe`, `ignoreInvalidURLs`, `scrapeOptions`). It searches through a [SearXNG](https://docs.searxng.org/) instance that you run:

@@ -172,7 +172,7 @@ describe('persistence and retrieval', () => {
 });
 
 describe('planned endpoints', () => {
-  it.each([['parse', 7], ['interact', 8], ['agent', 8], ['monitor', 9]])(
+  it.each([['interact', 8], ['agent', 8], ['monitor', 9]])(
     '/v2/%s answers 501 naming phase %i',
     async (path, phase) => {
       const { app, auth } = await makeApp();

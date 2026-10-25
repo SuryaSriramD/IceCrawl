@@ -1,3 +1,5 @@
+import { parseProxyList } from '@icecrawl/engines';
+
 export interface LlmSettings {
   provider: 'openai' | 'anthropic';
   model: string;
@@ -92,6 +94,11 @@ export interface AppConfig {
   searxngUrl?: string;
   searchMaxScrape: number;
   maxUploadBytes: number;
+  /** Operator proxy pools (http(s) URLs); empty when not configured. */
+  proxiesEnhanced: string[];
+  proxiesStealth: string[];
+  /** Minimum time between requests to one host through a pool proxy; 0 turns the pacing off. */
+  proxyDomainIntervalMs: number;
   extractMaxPages: number;
   rateLimitPerMinute: number;
   jobMaxRuntimeHours: number;
@@ -134,6 +141,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     searxngUrl: loadSearxngUrl(env),
     searchMaxScrape: positiveInt(env, 'ICECRAWL_SEARCH_MAX_SCRAPE', 20),
     maxUploadBytes: positiveInt(env, 'ICECRAWL_MAX_UPLOAD_BYTES', 50 * 1024 * 1024),
+    proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
+    proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
+    proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),
     extractMaxPages: positiveInt(env, 'ICECRAWL_EXTRACT_MAX_PAGES', 20),
     rateLimitPerMinute: nonNegativeInt(env, 'ICECRAWL_RATE_LIMIT_PER_MINUTE', 0),
     jobMaxRuntimeHours: positiveInt(env, 'ICECRAWL_JOB_MAX_RUNTIME_HOURS', 6),

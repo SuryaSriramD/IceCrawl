@@ -2,6 +2,13 @@
 
 All notable changes to IceCrawl. The project follows semantic versioning once 1.0 is released; until then minor versions may change behaviour.
 
+## Unreleased
+
+- `POST /v2/parse` and `GET /v2/parse/formats`: pdf, docx, xlsx, pptx, odt, ods, odp, epub, rtf, csv, html and txt to markdown with a receipt; the same converters read documents behind URLs. SDK `parse()` / `getParseFormats()`.
+- Operator proxy pools (`ICECRAWL_PROXIES_ENHANCED`, `ICECRAWL_PROXIES_STEALTH`), `proxy: enhanced | stealth`, and `proxy: auto` escalation on blocked or captcha verdicts; receipts record the proxy tier. Per-host pacing for proxied traffic. See docs/stealth.md.
+- Converter 3: HTML tables become markdown tables (receipts made with converter 2 report replay as skipped).
+- `verifyReceipt`, `renderBody` and `replayMarkdown` are now async.
+
 ## 0.1.0
 
 First release. Everything below ships in this version.

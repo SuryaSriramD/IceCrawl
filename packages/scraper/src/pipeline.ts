@@ -8,17 +8,22 @@ import {
   type Receipt,
   type Verdict,
 } from '@icecrawl/core';
-import { pickEngines, type ActionOutputs, type Engine, type EngineResult } from '@icecrawl/engines';
+import { pickEngines, type ActionOutputs, type Engine, type EngineResult, type ProxyPool, type ProxyTier } from '@icecrawl/engines';
 import { buildReceipt, classify, scanForInjection, sha256Hex, summarizeScan } from '@icecrawl/trust';
 import { CONVERTER } from './convert';
 import { buildFeatureFlags } from './flags';
 import { renderBody } from './render';
+import type { HostThrottle } from './throttle';
 
 export interface ScraperConfig {
   allowPrivateNetworks: boolean;
   maxResponseBytes: number;
   strict: boolean;
   injection?: 'off' | 'flag' | 'quarantine';
+  /** Operator proxies for proxy: enhanced, stealth and the escalation of proxy: auto. */
+  proxies?: ProxyPool | null;
+  /** Paces requests to one host that go through a pool proxy. */
+  throttle?: HostThrottle | null;
 }
 
 export interface ScrapeDeps {
@@ -52,6 +57,21 @@ export interface ScrapeRun {
   injection: InjectionReport | null;
   quarantined: boolean;
   warnings: string[];
+}
+
+/** Verdicts a better exit address or fingerprint can plausibly fix; anything else is not worth escalating. */
+const ESCALATE: ReadonlySet<Verdict> = new Set<Verdict>(['blocked', 'captcha']);
+
+/** The proxy tiers to try, in order; null is a direct connection. */
+function proxyTiers(mode: string, pool: ProxyPool | null | undefined): Array<ProxyTier | null> {
+  if (mode === 'enhanced' || mode === 'stealth') {
+    if (!pool?.has(mode)) {
+      throw new IceCrawlError('UNSUPPORTED_OPTION', `proxy "${mode}" needs a proxy pool: set ICECRAWL_PROXIES_${mode.toUpperCase()} (see docs/stealth.md).`);
+    }
+    return [mode];
+  }
+  if (mode === 'auto') return [null, ...(['enhanced', 'stealth'] as const).filter((t) => pool?.has(t))];
+  return [null];
 }
 
 const FATAL: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
@@ -120,49 +140,65 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
   const attempts: EngineAttempt[] = [];
   let last: Analyzed | null = null;
   let lastError: IceCrawlError | null = null;
+  const accept = (a: Analyzed) => a.verdict === 'ok' || (a.verdict === 'uncertain' && !deps.config.strict);
+  const pool = deps.config.proxies;
+  const tiers = proxyTiers(request.proxy, pool);
+  const host = new URL(request.url).hostname;
 
-  for (const pick of picks) {
-    const started = Date.now();
-    let result: EngineResult;
-    try {
-      result = await pick.engine.scrape({
-        url: request.url,
-        headers: request.headers ?? {},
-        timeoutMs: request.timeout,
-        skipTlsVerification: request.skipTlsVerification,
-        allowPrivateNetworks: deps.config.allowPrivateNetworks,
-        maxBytes: deps.config.maxResponseBytes,
-        waitFor: request.waitFor,
-        mobile: request.mobile,
-        actions: request.actions ?? [],
-        screenshot: n.screenshot,
-      });
-    } catch (err) {
-      const e = err instanceof IceCrawlError ? err : new IceCrawlError('TARGET_ERROR', String(err));
-      if (FATAL.has(e.code)) throw e;
+  for (const [t, tier] of tiers.entries()) {
+    if (t > 0 && last) warnings.push(`Escalated to the ${tier} proxy tier after a ${last.verdict} response.`);
+    const proxy = tier && pool ? pool.next(tier) : null;
+    for (const pick of picks) {
+      const started = Date.now();
+      let result: EngineResult;
+      try {
+        if (proxy) await deps.config.throttle?.wait(host);
+        result = await pick.engine.scrape({
+          url: request.url,
+          headers: request.headers ?? {},
+          timeoutMs: request.timeout,
+          skipTlsVerification: request.skipTlsVerification,
+          allowPrivateNetworks: deps.config.allowPrivateNetworks,
+          maxBytes: deps.config.maxResponseBytes,
+          waitFor: request.waitFor,
+          mobile: request.mobile,
+          actions: request.actions ?? [],
+          screenshot: n.screenshot,
+          ...(proxy ? { proxy, stealth: true } : {}),
+        });
+      } catch (err) {
+        const e = err instanceof IceCrawlError ? err : new IceCrawlError('TARGET_ERROR', String(err));
+        if (FATAL.has(e.code)) throw e;
+        if (proxy && pool) pool.report(proxy, false);
+        attempts.push({
+          engine: pick.engine.name,
+          verdict: 'error',
+          confidence: 1,
+          reasons: [e.code],
+          durationMs: Date.now() - started,
+          error: e.message,
+          ...(tier ? { proxyTier: tier } : {}),
+        });
+        lastError = e;
+        continue;
+      }
+
+      if (proxy && pool) pool.report(proxy, true);
+      const analyzed = await analyze(pick.engine.name, result, n);
       attempts.push({
-        engine: pick.engine.name,
-        verdict: 'error',
-        confidence: 1,
-        reasons: [e.code],
+        engine: analyzed.engine,
+        verdict: analyzed.verdict,
+        confidence: analyzed.confidence,
+        reasons: analyzed.reasons,
+        statusCode: result.statusCode,
         durationMs: Date.now() - started,
-        error: e.message,
+        ...(tier ? { proxyTier: tier } : {}),
       });
-      lastError = e;
-      continue;
+      last = analyzed;
+      if (accept(analyzed)) break;
     }
-
-    const analyzed = await analyze(pick.engine.name, result, n);
-    attempts.push({
-      engine: analyzed.engine,
-      verdict: analyzed.verdict,
-      confidence: analyzed.confidence,
-      reasons: analyzed.reasons,
-      statusCode: result.statusCode,
-      durationMs: Date.now() - started,
-    });
-    last = analyzed;
-    if (analyzed.verdict === 'ok' || (analyzed.verdict === 'uncertain' && !deps.config.strict)) break;
+    // only proxy: auto escalates, and only when the page was refused rather than empty or broken
+    if (!last || accept(last) || request.proxy !== 'auto' || !ESCALATE.has(last.verdict)) break;
   }
 
   if (!last) throw lastError ?? new IceCrawlError('NO_ENGINE', 'No engine produced a result');

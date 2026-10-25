@@ -1,4 +1,5 @@
-import { createPlaywrightEngine, createSearxngProvider, fetchEngine, type Engine, type PlaywrightEngine, type SearchProvider } from '@icecrawl/engines';
+import { createPlaywrightEngine, createSearxngProvider, fetchEngine, ProxyPool, type Engine, type PlaywrightEngine, type SearchProvider } from '@icecrawl/engines';
+import { HostThrottle } from '@icecrawl/scraper';
 import { createLlmClient } from '@icecrawl/extract';
 import { BullQueues } from '@icecrawl/queue';
 import type { PrivateSigningKey } from '@icecrawl/trust';
@@ -57,6 +58,8 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
     maxResponseBytes: config.maxResponseBytes,
     strict: config.strict,
     injection: config.injection,
+    proxies: config.proxiesEnhanced.length + config.proxiesStealth.length > 0 ? new ProxyPool({ enhanced: config.proxiesEnhanced, stealth: config.proxiesStealth }) : null,
+    throttle: new HostThrottle(config.proxyDomainIntervalMs),
   };
   const extraction: ExtractionDeps = {
     llm: config.llm ? createLlmClient(config.llm) : null,
