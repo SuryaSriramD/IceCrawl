@@ -37,7 +37,7 @@ try {
   run('npm', ['install', '--no-audit', '--no-fund', '--silent', ...files.map((f) => JSON.stringify(join(tarballs, f)))], app);
   console.log('installed into an empty project');
 
-  server = spawn('pnpm', ['tsx', 'packages/api/test/support/conformance-server.ts'], { cwd: root, shell: true, env: { ...process.env, PORT: String(PORT) } });
+  server = spawn('pnpm', ['tsx', 'packages/api/test/support/conformance-server.ts'], { cwd: root, shell: true, detached: process.platform !== 'win32', env: { ...process.env, PORT: String(PORT) } });
   await new Promise((resolveReady, reject) => {
     const timer = setTimeout(() => reject(new Error('conformance server did not start')), 60_000);
     server.stdout.on('data', (b) => {
@@ -85,7 +85,16 @@ try {
 } finally {
   if (server) {
     if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(server.pid), '/t', '/f'], { shell: true });
-    else server.kill();
+    else {
+      // the shell, pnpm and tsx are separate processes: stop the whole group, or the pipes stay open and this script never exits
+      try {
+        process.kill(-server.pid, 'SIGTERM');
+      } catch {
+        server.kill();
+      }
+    }
+    server.stdout?.destroy();
+    server.stderr?.destroy();
   }
   if (!process.env.KEEP_PACK_SMOKE) rmSync(work, { recursive: true, force: true });
   else console.log('kept', work);
