@@ -30,6 +30,8 @@ open http://localhost:3002/dashboard/
 
 Settings come from the environment or a `.env` file next to `docker-compose.yml` (see `.env.example`). To search, set `ICECRAWL_SEARXNG_URL=http://searxng:8080` (and `SEARXNG_PORT` if 8080 is taken on the host). For a model on your own machine, for example Ollama: `ICECRAWL_LLM_PROVIDER=openai`, `ICECRAWL_LLM_BASE_URL=http://host.docker.internal:11434/v1`, `ICECRAWL_LLM_MODEL=<model>`; raise `ICECRAWL_LLM_TIMEOUT_MS` for slow or reasoning models.
 
+On a Mac, with Claude and Codex: `./scripts/setup-mac.sh` does the whole setup and prints the settings to paste ([docs/macos.md](docs/macos.md)).
+
 ## What "trustworthy" means here
 
 - A scrape only succeeds if its content is verified: bot-walls, captchas, login walls, empty, soft-404 and truncated pages come back as `success:false` with a typed `code`, not as page text.
