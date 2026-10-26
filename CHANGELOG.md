@@ -4,6 +4,10 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Documents are converted in a worker thread with a time and memory limit, so a hostile file cannot stall the server; PDF and XML parts are bounded. Receipt replay in the CLI and SDK still converts in-process.
+- Session browsers cannot reach their own debugging port through the egress proxy.
+- Fixes found by running the Docker stack: an empty `ICECRAWL_INJECTION` (what compose passes for an unset setting) no longer stops the server from starting, compose forwards the model, proxy, monitor and interact settings to the worker as well, and the published `sdk`, `mcp` and `cli` packages declare the document libraries they need (the pack smoke test failed in CI without them).
+
 - Dashboard at `/dashboard/`: overview, playground, jobs, receipts (in-browser signature and snapshot checks), monitors with diffs. No build step; strict content security policy; `ICECRAWL_DASHBOARD=false` turns it off. Stored snapshots are now served with `Content-Security-Policy: sandbox`. See docs/dashboard.md.
 
 - Index: `POST /v2/index/search` (full-text search over your stored scrapes, latest copy of each URL, with receipts) and `GET /v2/index/providers`; operator-defined HTTP data providers via `ICECRAWL_PROVIDERS_FILE`. SDK `searchIndex()`, MCP `search_index`. See docs/index.md.

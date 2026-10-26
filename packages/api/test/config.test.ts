@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config';
 
 describe('loadConfig injection mode', () => {
   it('defaults to flag', () => expect(loadConfig({}).injection).toBe('flag'));
+  it('treats an empty value (docker compose passes unset variables as empty) as the default', () => expect(loadConfig({ ICECRAWL_INJECTION: '' }).injection).toBe('flag'));
   it.each(['off', 'flag', 'quarantine'] as const)('accepts %s', (mode) => expect(loadConfig({ ICECRAWL_INJECTION: mode }).injection).toBe(mode));
   it('rejects unknown values so a typo cannot silently disable protection', () => {
     expect(() => loadConfig({ ICECRAWL_INJECTION: 'quarantene' })).toThrow(/ICECRAWL_INJECTION/);
@@ -109,5 +111,15 @@ describe('loadConfig files and proxies', () => {
     expect(c.proxyDomainIntervalMs).toBe(0);
     expect(() => loadConfig({ ICECRAWL_PROXIES_ENHANCED: 'socks5://u:hunter2@h:1' })).toThrow(/ICECRAWL_PROXIES_ENHANCED entry 1/);
     expect(() => loadConfig({ ICECRAWL_PROXIES_ENHANCED: 'http://10.0.0.1:3128' })).toThrow(/private/);
+  });
+});
+
+describe('docker compose', () => {
+  it('starts with every forwarded setting empty, which is what compose passes for settings you did not set', () => {
+    const compose = readFileSync(new URL('../../../docker-compose.yml', import.meta.url), 'utf8');
+    const names = [...new Set([...compose.matchAll(/^\s+(ICECRAWL_[A-Z0-9_]+):\s+\$\{/gm)].map((m) => m[1]))];
+    expect(names.length).toBeGreaterThan(15);
+    const env = Object.fromEntries(names.map((n) => [n, '']));
+    expect(() => loadConfig(env)).not.toThrow();
   });
 });

@@ -24,6 +24,8 @@ export interface ScraperConfig {
   proxies?: ProxyPool | null;
   /** Paces requests to one host that go through a pool proxy. */
   throttle?: HostThrottle | null;
+  /** Convert documents in a worker thread so a hostile file cannot stall the server (default true). */
+  isolateDocuments?: boolean;
 }
 
 export interface ScrapeDeps {
@@ -98,7 +100,7 @@ interface Analyzed {
   warnings: string[];
 }
 
-async function analyze(engine: string, result: EngineResult, n: NormalizedScrape): Promise<Analyzed> {
+async function analyze(engine: string, result: EngineResult, n: NormalizedScrape, isolateDocuments: boolean): Promise<Analyzed> {
   const { kind, text, markdown, cleanHtml, links, title, description, language, warnings, unreadable } = await renderBody(
     result.body,
     result.contentType,
@@ -108,6 +110,7 @@ async function analyze(engine: string, result: EngineResult, n: NormalizedScrape
       includeTags: n.request.includeTags,
       excludeTags: n.request.excludeTags,
       removeBase64Images: n.request.removeBase64Images,
+      isolateDocuments,
     },
   );
 
@@ -184,7 +187,7 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
       }
 
       if (proxy && pool) pool.report(proxy, true);
-      const analyzed = await analyze(pick.engine.name, result, n);
+      const analyzed = await analyze(pick.engine.name, result, n, deps.config.isolateDocuments ?? true);
       attempts.push({
         engine: analyzed.engine,
         verdict: analyzed.verdict,

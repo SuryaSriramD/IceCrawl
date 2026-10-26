@@ -52,9 +52,30 @@ function pageHtml(lines: Line[], body: number): string {
   return out.join('');
 }
 
+/** The module prints harmless notices when it loads on Node older than 22 (optional canvas and require polyfills); text extraction needs neither. */
+let pdfjsModule: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')> | null = null;
+function loadPdfjs() {
+  pdfjsModule ??= (async () => {
+    const { log, warn } = console;
+    const quiet = (original: typeof console.log) => (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && /^Warning: Cannot (access the `require` function|polyfill)/.test(args[0])) return;
+      original(...args);
+    };
+    console.log = quiet(log);
+    console.warn = quiet(warn);
+    try {
+      return await import('pdfjs-dist/legacy/build/pdf.mjs');
+    } finally {
+      console.log = log;
+      console.warn = warn;
+    }
+  })();
+  return pdfjsModule;
+}
+
 /** Extracts the text layer of a PDF. Scanned pages have none; a warning says so (no OCR). */
 export async function pdfToHtml(bytes: Uint8Array, limits: DocumentLimits): Promise<ConvertedDocument> {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjs = await loadPdfjs();
   let doc;
   try {
     doc = await pdfjs.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, useSystemFonts: false, disableFontFace: true, verbosity: 0 }).promise;

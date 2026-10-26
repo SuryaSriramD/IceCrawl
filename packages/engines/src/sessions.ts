@@ -46,6 +46,7 @@ interface Session {
   context: BrowserContext;
   page: Page;
   cdp: string;
+  port: number;
   dir: string;
   busy: boolean;
 }
@@ -76,6 +77,7 @@ export class SessionManager {
   /** Browsers being started: they count against the cap before they appear in `sessions`. */
   private launching = 0;
   private proxy: Promise<EgressProxy> | null = null;
+  private readonly debugPorts = new Set<number>();
   private timer: NodeJS.Timeout | null = null;
   private readonly now: () => number;
 
@@ -107,7 +109,7 @@ export class SessionManager {
   }
 
   private async launch(o: { ownerKey: string; ttlMs: number; activityTtlMs?: number; url?: string }): Promise<SessionInfo> {
-    this.proxy ??= startEgressProxy({ allowPrivate: this.opts.allowPrivateNetworks });
+    this.proxy ??= startEgressProxy({ allowPrivate: this.opts.allowPrivateNetworks, blockedLoopbackPorts: this.debugPorts });
     const proxy = await this.proxy;
     const dir = await mkdtemp(join(tmpdir(), 'icecrawl-session-'));
     let context: BrowserContext | undefined;
@@ -121,6 +123,7 @@ export class SessionManager {
         viewport: { width: 1280, height: 800 },
       });
       const port = await readDevToolsPort(dir);
+      this.debugPorts.add(port);
       const page = context.pages()[0] ?? (await context.newPage());
       const now = this.now();
       const s: Session = {
@@ -133,6 +136,7 @@ export class SessionManager {
         context,
         page,
         cdp: `http://127.0.0.1:${port}`,
+        port,
         dir,
         busy: false,
       };
@@ -164,6 +168,7 @@ export class SessionManager {
   async destroy(id: string, ownerKey: string): Promise<{ durationMs: number }> {
     const s = this.owned(id, ownerKey);
     this.sessions.delete(id);
+    this.debugPorts.delete(s.port);
     await s.context.close().catch(() => undefined);
     await rm(s.dir, { recursive: true, force: true }).catch(() => undefined);
     return { durationMs: this.now() - s.createdAt };

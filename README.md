@@ -2,7 +2,7 @@
 
 Open-source, Firecrawl-v2-compatible web scraping API where every scrape comes with a verdict and a provenance receipt.
 
-> Status: 0.1.0, ready for a first release (see `CHANGELOG.md`, `docs/RELEASING.md`). Scrape, crawl, batch, map, search (SearXNG), LLM extract with a grounding check, signed receipts, a prompt-injection scan, an MCP server for Claude and Codex and a typed SDK work and are covered by the quality gates below. Parse, stealth proxies, interact, agent, monitor, indexes and a dashboard follow the roadmap in `docs/superpowers/specs/2026-10-24-icecrawl-design.md`.
+> Status: 0.1.0 plus the roadmap phases built since (see `CHANGELOG.md`, `docs/RELEASING.md`). Scrape, parse (files), crawl, batch, map, search (SearXNG), LLM extract with a grounding check, an agent, interact sessions, monitors, a stored-page index, proxy escalation, signed receipts, a prompt-injection scan, an MCP server for Claude and Codex, a typed SDK and a dashboard are built and covered by the quality gates below. Not built: billing, a captcha solver, email notifications. Each feature page in `docs/` lists what it does not do.
 
 ## Quick start
 
@@ -19,6 +19,16 @@ curl -s http://localhost:3002/v2/scrape \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"url":"https://example.com","formats":["markdown","links"]}'
 ```
+
+## Run it with Docker
+
+```bash
+docker compose --profile search up -d --build     # api, worker, Postgres, Redis and SearXNG (profile "search")
+docker compose exec api pnpm --filter @icecrawl/api keys:create me   # prints an API key once
+open http://localhost:3002/dashboard/
+```
+
+Settings come from the environment or a `.env` file next to `docker-compose.yml` (see `.env.example`). To search, set `ICECRAWL_SEARXNG_URL=http://searxng:8080` (and `SEARXNG_PORT` if 8080 is taken on the host). For a model on your own machine, for example Ollama: `ICECRAWL_LLM_PROVIDER=openai`, `ICECRAWL_LLM_BASE_URL=http://host.docker.internal:11434/v1`, `ICECRAWL_LLM_MODEL=<model>`; raise `ICECRAWL_LLM_TIMEOUT_MS` for slow or reasoning models.
 
 ## What "trustworthy" means here
 

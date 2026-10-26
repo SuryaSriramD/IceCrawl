@@ -55,6 +55,30 @@ function connectThroughProxy(proxy: EgressProxy, hostPort: string): Promise<{ st
   });
 }
 
+describe('blocked loopback ports', () => {
+  it('refuses requests to a blocked port on loopback even when private addresses are allowed, and only that port', async () => {
+    const http = await import('node:http');
+    const origin = http.createServer((_q, r) => r.end('ok'));
+    const other = http.createServer((_q, r) => r.end('ok'));
+    await Promise.all([origin, other].map((s) => new Promise<void>((r) => s.listen(0, '127.0.0.1', r))));
+    const portOf = (s: import('node:http').Server) => (s.address() as import('node:net').AddressInfo).port;
+    const blocked = new Set<number>([portOf(origin)]);
+    const proxy = await startEgressProxy({ allowPrivate: true, blockedLoopbackPorts: blocked });
+    const get = async (port: number) => {
+      const { request, ProxyAgent } = await import('undici');
+      const res = await request(`http://127.0.0.1:${port}/`, { dispatcher: new ProxyAgent(proxy.url) });
+      return { status: res.statusCode, text: await res.body.text() };
+    };
+    // undici tunnels through the proxy with CONNECT and reports a refused tunnel as an error
+    await expect(get(portOf(origin))).rejects.toThrow(/403/);
+    expect(await get(portOf(other))).toEqual({ status: 200, text: 'ok' });
+    blocked.clear();
+    expect((await get(portOf(origin))).status).toBe(200);
+    await proxy.close();
+    await Promise.all([origin, other].map((s) => new Promise<void>((r) => s.close(() => r()))));
+  });
+});
+
 describe('egress proxy', () => {
   it('forwards plain HTTP when private addresses are allowed', async () => {
     const proxy = await startEgressProxy({ allowPrivate: true });

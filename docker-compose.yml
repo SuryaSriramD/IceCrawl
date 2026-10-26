@@ -1,3 +1,30 @@
+# Settings both the API and the worker read. Anything left empty falls back to the built-in default.
+x-icecrawl-env: &icecrawl-env
+  DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
+  REDIS_URL: redis://redis:6379
+  ICECRAWL_SNAPSHOT_DIR: /data/snapshots
+  ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
+  ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
+  ICECRAWL_BROWSER_NO_SANDBOX: "true"
+  ICECRAWL_SEARXNG_URL: ${ICECRAWL_SEARXNG_URL:-}
+  ICECRAWL_LLM_PROVIDER: ${ICECRAWL_LLM_PROVIDER:-}
+  ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
+  ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
+  ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
+  ICECRAWL_LLM_TIMEOUT_MS: ${ICECRAWL_LLM_TIMEOUT_MS:-}
+  ICECRAWL_LLM_MAX_INPUT_CHARS: ${ICECRAWL_LLM_MAX_INPUT_CHARS:-}
+  ICECRAWL_LLM_MAX_OUTPUT_TOKENS: ${ICECRAWL_LLM_MAX_OUTPUT_TOKENS:-}
+  ICECRAWL_ALLOW_PRIVATE_NETWORKS: ${ICECRAWL_ALLOW_PRIVATE_NETWORKS:-}
+  ICECRAWL_STRICT: ${ICECRAWL_STRICT:-}
+  ICECRAWL_INJECTION: ${ICECRAWL_INJECTION:-}
+  ICECRAWL_PROXIES_ENHANCED: ${ICECRAWL_PROXIES_ENHANCED:-}
+  ICECRAWL_PROXIES_STEALTH: ${ICECRAWL_PROXIES_STEALTH:-}
+  ICECRAWL_PROXY_DOMAIN_INTERVAL_MS: ${ICECRAWL_PROXY_DOMAIN_INTERVAL_MS:-}
+  ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES: ${ICECRAWL_MONITOR_MIN_INTERVAL_MINUTES:-}
+  ICECRAWL_MONITOR_MAX_PAGES: ${ICECRAWL_MONITOR_MAX_PAGES:-}
+  ICECRAWL_JOB_MAX_RUNTIME_HOURS: ${ICECRAWL_JOB_MAX_RUNTIME_HOURS:-}
+  ICECRAWL_LOG_LEVEL: ${ICECRAWL_LOG_LEVEL:-}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -26,22 +53,15 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
+      <<: *icecrawl-env
       PORT: "3002"
-      DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
-      REDIS_URL: redis://redis:6379
-      ICECRAWL_SNAPSHOT_DIR: /data/snapshots
-      ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
-      ICECRAWL_BROWSER_NO_SANDBOX: "true"
       ICECRAWL_RUN_WORKER: "false"
-      ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
-      ICECRAWL_SEARXNG_URL: ${ICECRAWL_SEARXNG_URL:-}
-      ICECRAWL_LLM_PROVIDER: ${ICECRAWL_LLM_PROVIDER:-}
-      ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
-      ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
-      ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
       ICECRAWL_RATE_LIMIT_PER_MINUTE: ${ICECRAWL_RATE_LIMIT_PER_MINUTE:-}
-      ICECRAWL_JOB_MAX_RUNTIME_HOURS: ${ICECRAWL_JOB_MAX_RUNTIME_HOURS:-}
-      ICECRAWL_LOG_LEVEL: ${ICECRAWL_LOG_LEVEL:-}
+      ICECRAWL_PUBLIC_URL: ${ICECRAWL_PUBLIC_URL:-}
+      ICECRAWL_MAX_UPLOAD_BYTES: ${ICECRAWL_MAX_UPLOAD_BYTES:-}
+      ICECRAWL_DASHBOARD: ${ICECRAWL_DASHBOARD:-}
+      ICECRAWL_INTERACT_CODE: ${ICECRAWL_INTERACT_CODE:-}
+      ICECRAWL_INTERACT_MAX_SESSIONS: ${ICECRAWL_INTERACT_MAX_SESSIONS:-}
     ports: ["3002:3002"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -60,19 +80,7 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      DATABASE_URL: postgres://icecrawl:icecrawl@postgres:5432/icecrawl
-      REDIS_URL: redis://redis:6379
-      ICECRAWL_SNAPSHOT_DIR: /data/snapshots
-      ICECRAWL_SIGNING_KEY_FILE: /data/signing/signing-key.pem
-      ICECRAWL_WEBHOOK_SECRET_FILE: /data/signing/webhook-secret
-      ICECRAWL_BROWSER_NO_SANDBOX: "true"
-      ICECRAWL_SEARXNG_URL: ${ICECRAWL_SEARXNG_URL:-}
-      ICECRAWL_LLM_PROVIDER: ${ICECRAWL_LLM_PROVIDER:-}
-      ICECRAWL_LLM_MODEL: ${ICECRAWL_LLM_MODEL:-}
-      ICECRAWL_LLM_API_KEY: ${ICECRAWL_LLM_API_KEY:-}
-      ICECRAWL_LLM_BASE_URL: ${ICECRAWL_LLM_BASE_URL:-}
-      ICECRAWL_JOB_MAX_RUNTIME_HOURS: ${ICECRAWL_JOB_MAX_RUNTIME_HOURS:-}
-      ICECRAWL_LOG_LEVEL: ${ICECRAWL_LOG_LEVEL:-}
+      <<: *icecrawl-env
     volumes: ["snapshots:/data/snapshots", "signing:/data/signing"]
     shm_size: "1gb"
   searxng:

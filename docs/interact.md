@@ -14,7 +14,7 @@ curl -s -X DELETE localhost:3002/v2/interact/$ID -H "Authorization: Bearer $KEY"
 - State (cookies, the open page) lasts until the session is deleted, expires (`ttl`, 30–3600 s) or sits idle past `activityTtl`. A server keeps at most `ICECRAWL_INTERACT_MAX_SESSIONS` (5) sessions. Sessions belong to the API key that made them and live in the API process (they do not survive a restart).
 - The browser's traffic goes through the same SSRF guard as scrapes. `profile`, `location`, `blockAds` and `streamWebView` are accepted and ignored (named in `warning`); there is no live view and no CDP URL is returned.
 
-- Each session's Chromium opens a remote-debugging port on `127.0.0.1` without authentication (that is how code attaches to it). Anyone with access to the machine can drive a session's browser, and with `ICECRAWL_ALLOW_PRIVATE_NETWORKS=true` a page loaded in a session can reach that port too. Do not run IceCrawl with interact on a shared host, and leave private networks off.
+- Each session's Chromium opens a remote-debugging port on `127.0.0.1` without authentication (that is how code attaches to it). The session's egress proxy refuses requests to that port, so a page cannot reach the browser that renders it, even with `ICECRAWL_ALLOW_PRIVATE_NETWORKS=true`. Other processes on the same machine can still connect to it: do not run IceCrawl with interact on a shared host.
 
 ## Turning on code execution
 

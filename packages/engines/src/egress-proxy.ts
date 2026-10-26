@@ -13,6 +13,11 @@ export interface EgressProxy {
 export interface EgressProxyOptions {
   allowPrivate: boolean;
   resolve?: (host: string) => Promise<dns.LookupAddress[]>;
+  /**
+   * Ports that must never be reached on a loopback address, even when private addresses are allowed. Session browsers add
+   * their own debugging port here so a page cannot talk to the browser that renders it. Mutable on purpose.
+   */
+  blockedLoopbackPorts?: Set<number>;
 }
 
 class BlockedError extends Error {}
@@ -29,11 +34,15 @@ export async function startEgressProxy(opts: EgressProxyOptions): Promise<Egress
   const listeners = new Set<(host: string) => void>();
 
   // Resolve once and connect to this exact address, so a second DNS answer cannot change the target.
-  async function checked(host: string): Promise<dns.LookupAddress> {
+  async function checked(host: string, port: number): Promise<dns.LookupAddress> {
     const clean = host.replace(/^\[|\]$/g, '');
     const addresses = await resolve(clean);
     if (addresses.length === 0) throw new Error(`no address for ${clean}`);
     if (!opts.allowPrivate && addresses.some((a) => isPrivateAddress(a.address))) {
+      for (const cb of listeners) cb(clean);
+      throw new BlockedError(clean);
+    }
+    if (opts.blockedLoopbackPorts?.has(port) && addresses.some((a) => a.address.startsWith('127.') || a.address === '::1')) {
       for (const cb of listeners) cb(clean);
       throw new BlockedError(clean);
     }
@@ -53,7 +62,7 @@ export async function startEgressProxy(opts: EgressProxyOptions): Promise<Egress
         res.writeHead(400).end('only http: is proxied here; https uses CONNECT');
         return;
       }
-      const address = await checked(target.hostname);
+      const address = await checked(target.hostname, Number(target.port || 80));
       const headers: http.OutgoingHttpHeaders = { ...req.headers, host: target.host };
       delete headers['proxy-connection'];
       delete headers['proxy-authorization'];
@@ -93,7 +102,7 @@ export async function startEgressProxy(opts: EgressProxyOptions): Promise<Egress
       return;
     }
     try {
-      const address = await checked(hp.host);
+      const address = await checked(hp.host, hp.port);
       const upstream = net.connect(hp.port, address.address, () => {
         clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         if (head.length > 0) upstream.write(head);

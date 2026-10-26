@@ -1,4 +1,4 @@
-import { convertDocument, detectDocumentKind, DocumentError } from '@icecrawl/documents';
+import { convertDocument, convertDocumentIsolated, detectDocumentKind, DocumentError } from '@icecrawl/documents';
 import { convertHtml } from './convert';
 import { contentKind, decodeBody, type ContentKind } from './decode';
 
@@ -7,6 +7,8 @@ export interface RenderOptions {
   includeTags?: string[];
   excludeTags?: string[];
   removeBase64Images: boolean;
+  /** Convert documents in a worker thread (the server does; receipt replay in the CLI and SDK stays in-process). */
+  isolateDocuments?: boolean;
 }
 
 export interface Rendered {
@@ -38,7 +40,7 @@ export async function renderBody(bytes: Uint8Array, contentType: string, finalUr
   const documentKind = kind === 'html' || kind === 'json' ? null : detectDocumentKind({ contentType, filename: filenameOf(finalUrl), bytes });
   if (documentKind) {
     try {
-      const doc = await convertDocument(bytes, documentKind);
+      const doc = o.isolateDocuments ? await convertDocumentIsolated(bytes, documentKind) : await convertDocument(bytes, documentKind);
       // the converter's HTML is already the whole document: no readability pass, no tag filters
       const c = convertHtml(doc.html, { url: finalUrl, onlyMainContent: false, removeBase64Images: o.removeBase64Images });
       return { kind: 'document', text: doc.html, ...c, title: doc.title ?? c.title, warnings: doc.warnings };

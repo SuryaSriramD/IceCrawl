@@ -114,7 +114,7 @@ export interface AppConfig {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const injection = env.ICECRAWL_INJECTION ?? 'flag';
+  const injection = env.ICECRAWL_INJECTION || 'flag';
   if (injection !== 'off' && injection !== 'flag' && injection !== 'quarantine') {
     throw new Error(`ICECRAWL_INJECTION must be off, flag or quarantine (got "${injection}")`);
   }

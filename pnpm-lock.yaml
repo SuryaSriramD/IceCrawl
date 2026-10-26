@@ -126,9 +126,21 @@ importers:
       '@mozilla/readability':
         specifier: ^0.5.0
         version: 0.5.0
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
+      fflate:
+        specifier: ~0.8.3
+        version: 0.8.3
       linkedom:
         specifier: ^0.18.5
         version: 0.18.14
+      mammoth:
+        specifier: ~1.13.0
+        version: 1.13.0
+      pdfjs-dist:
+        specifier: 4.10.38
+        version: 4.10.38
       turndown:
         specifier: ^7.2.0
         version: 7.2.4
@@ -180,6 +192,9 @@ importers:
       pdfjs-dist:
         specifier: 4.10.38
         version: 4.10.38
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.15
 
   packages/engines:
     dependencies:
@@ -225,9 +240,21 @@ importers:
       '@mozilla/readability':
         specifier: ^0.5.0
         version: 0.5.0
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
+      fflate:
+        specifier: ~0.8.3
+        version: 0.8.3
       linkedom:
         specifier: ^0.18.5
         version: 0.18.14
+      mammoth:
+        specifier: ~1.13.0
+        version: 1.13.0
+      pdfjs-dist:
+        specifier: 4.10.38
+        version: 4.10.38
       turndown:
         specifier: ^7.2.0
         version: 7.2.4
@@ -296,9 +323,21 @@ importers:
       '@mozilla/readability':
         specifier: ^0.5.0
         version: 0.5.0
+      fast-xml-parser:
+        specifier: ^5.11.2
+        version: 5.11.2
+      fflate:
+        specifier: ~0.8.3
+        version: 0.8.3
       linkedom:
         specifier: ^0.18.5
         version: 0.18.14
+      mammoth:
+        specifier: ~1.13.0
+        version: 1.13.0
+      pdfjs-dist:
+        specifier: 4.10.38
+        version: 4.10.38
       turndown:
         specifier: ^7.2.0
         version: 7.2.4
