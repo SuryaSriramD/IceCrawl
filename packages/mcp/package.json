@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "MCP server for IceCrawl: scrape, crawl, search and extract for Claude and Codex, with untrusted-content handling.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuryaSriramD/IceCrawl.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/SuryaSriramD/IceCrawl#readme",
+  "bugs": {
+    "url": "https://github.com/SuryaSriramD/IceCrawl/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.12"

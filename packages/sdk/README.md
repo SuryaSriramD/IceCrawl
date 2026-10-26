@@ -1,6 +1,6 @@
 # @icecrawl/sdk
 
-Typed client for the [IceCrawl](https://github.com/icecrawl/icecrawl) API (Firecrawl v2 compatible), plus receipt verification.
+Typed client for the [IceCrawl](https://github.com/SuryaSriramD/IceCrawl) API (Firecrawl v2 compatible), plus receipt verification.
 
 ```ts
 import { IceCrawl } from '@icecrawl/sdk';

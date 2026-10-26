@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "Typed client for the IceCrawl API (Firecrawl v2 compatible) with receipt verification.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuryaSriramD/IceCrawl.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/SuryaSriramD/IceCrawl#readme",
+  "bugs": {
+    "url": "https://github.com/SuryaSriramD/IceCrawl/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.12"

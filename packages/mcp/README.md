@@ -1,6 +1,6 @@
 # @icecrawl/mcp
 
-MCP server for [IceCrawl](https://github.com/icecrawl/icecrawl): scrape, map, crawl, batch scrape, search, extract and receipt verification for Claude, Codex and other MCP clients. Page text is always wrapped as untrusted data and failed scrapes never return page text.
+MCP server for [IceCrawl](https://github.com/SuryaSriramD/IceCrawl): scrape, map, crawl, batch scrape, search, extract and receipt verification for Claude, Codex and other MCP clients. Page text is always wrapped as untrusted data and failed scrapes never return page text.
 
 ```bash
 claude mcp add icecrawl -e ICECRAWL_API_URL=http://localhost:3002 -e ICECRAWL_API_KEY=ic-... -- npx -y @icecrawl/mcp

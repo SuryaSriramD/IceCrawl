@@ -6,7 +6,7 @@ import { assertHostPublic, assertUrlAllowed, createSafeLookup } from './ssrf';
 import type { Engine, EngineContext, EngineResult } from './types';
 
 const MAX_REDIRECTS = 10;
-export const USER_AGENT = 'Mozilla/5.0 (compatible; IceCrawl/0.1; +https://github.com/icecrawl/icecrawl)';
+export const USER_AGENT = 'Mozilla/5.0 (compatible; IceCrawl/0.1; +https://github.com/SuryaSriramD/IceCrawl)';
 /** Sent instead of USER_AGENT when a request goes through an enhanced or stealth proxy. */
 export const STEALTH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 

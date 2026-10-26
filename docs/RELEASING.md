@@ -6,7 +6,7 @@ The release workflow (`.github/workflows/release.yml`) only publishes when start
 
 These cannot be guessed by the code and must be set by the owner:
 
-1. **Repository URL.** Add `repository`, `homepage` and `bugs` to the three publishable `package.json` files, and replace the placeholder `+https://github.com/icecrawl/icecrawl` in `USER_AGENT` (`packages/engines/src/fetch.ts`) with the real URL (it identifies the crawler to site owners).
+1. **Repository URL.** Done: the packages and the crawler's user agent point at https://github.com/SuryaSriramD/IceCrawl. Change them if the repository moves.
 2. **npm scope.** The packages are named `@icecrawl/sdk`, `@icecrawl/mcp` and `@icecrawl/cli`. The `@icecrawl` scope must exist on npm and be owned by you. If it is taken, rename the three packages (and the README snippets) before publishing.
 3. **Secrets.** Create the GitHub environment `npm` and the secret `NPM_TOKEN` (automation token). `--provenance` needs the repository to be public or the account to support private provenance.
 4. **Security contact.** Enable private vulnerability reporting on the repository (SECURITY.md points to it).

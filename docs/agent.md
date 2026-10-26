@@ -4,7 +4,7 @@
 
 ```bash
 ID=$(curl -s -X POST localhost:3002/v2/agent -H "Authorization: Bearer $KEY" -H 'content-type: application/json' \
-  -d '{"prompt":"Which license does the project use?","urls":["https://github.com/icecrawl/icecrawl"],"effort":"low"}' | jq -r .id)
+  -d '{"prompt":"Which license does the project use?","urls":["https://github.com/SuryaSriramD/IceCrawl"],"effort":"low"}' | jq -r .id)
 curl -s localhost:3002/v2/agent/$ID -H "Authorization: Bearer $KEY"          # processing | completed | failed
 curl -s localhost:3002/v2/agent/$ID/trace -H "Authorization: Bearer $KEY"    # every step, while it runs and after
 ```
