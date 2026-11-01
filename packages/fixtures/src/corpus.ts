@@ -106,7 +106,7 @@ export const CORPUS: CorpusEntry[] = [
 
   // --- known weaknesses: measured and reported, not counted against the targets
   { id: 'soft404-with-site-index', expected: 'soft_404', path: '/gap/soft404-index', body: sitemapNotFound(), knownGap: 'a not-found page longer than 1500 characters (for example with a full site index) is accepted' },
-  { id: 'login-with-marketing-copy', expected: 'login_wall', path: '/gap/login-marketing', body: loginPage(`<p>${prose(900)}</p>`), knownGap: 'a sign-in form surrounded by more than 600 characters of text is accepted' },
+  { id: 'login-with-marketing-copy', expected: 'login_wall', path: '/login/marketing', body: loginPage(`<p>${prose(900)}</p>`) },
   { id: 'px-denied', expected: 'blocked', path: '/gap/px-denied', body: shortPage('Access to this page has been denied', 'We have detected unusual activity from your device. Press and hold the button to prove you are not a robot.'), knownGap: 'block pages whose title is not one of the known challenge titles are accepted when they have some text' },
 
   // --- needs a browser

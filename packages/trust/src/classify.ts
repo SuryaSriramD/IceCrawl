@@ -27,6 +27,7 @@ const CAPTCHA_MARKERS = [
 const CHALLENGE_TITLE =
   /^(just a moment|attention required|access denied|are you a robot|verify you are human|pardon our interruption|one more step)/i;
 const JS_REQUIRED = /(enable javascript|javascript is (required|disabled)|requires javascript|turn on javascript)/i;
+const SIGN_IN = /\b(sign|log)[\s-]?in\b|\blogin\b|\bauthenticat/i;
 const NOT_FOUND = /\b(404|page not found|not found|doesn'?t exist|does not exist|no longer available)\b/i;
 
 const result = (verdict: Verdict, confidence: number, ...reasons: string[]): Classification => ({
@@ -72,8 +73,14 @@ export function classify(i: ClassifyInput): Classification {
   }
 
   if (JS_REQUIRED.test(i.html) && len < 300) return result('empty', 0.85, 'js_required');
-  if (/<input[^>]+type=["']?password/i.test(i.html) && len < 600) {
+  const hasPasswordField = /<input[^>]+type=["']?password/i.test(i.html);
+  if (hasPasswordField && len < 600) {
     return result('login_wall', 0.85, 'password_form_without_content');
+  }
+  // a sign-in page that also carries a footer, cookie notice and the like is longer than 600 characters: the page
+  // title or its top heading says it is a sign-in page and there is a password field, but no article
+  if (hasPasswordField && len < 2500 && (SIGN_IN.test(title) || SIGN_IN.test(firstHeading(text)))) {
+    return result('login_wall', 0.85, 'sign_in_page_with_password_form');
   }
   if (len < 20) return result('empty', 0.9, 'no_text_content');
 

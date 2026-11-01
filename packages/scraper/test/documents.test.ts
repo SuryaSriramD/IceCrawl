@@ -41,6 +41,20 @@ describe('tables in markdown: links and layout', () => {
   it('keeps links and emphasis inside data table cells', () => {
     expect(md('<table><tr><th>name</th></tr><tr><td><a href="/x">Pricing</a> <b>now</b></td></tr></table>')).toBe('| name |\n| --- |\n| [Pricing](https://example.com/x) **now** |');
   });
+  it('keeps code in data table cells and never glues neighbouring cells together', () => {
+    const out = md('<table><tr><td>PHANTOM_UA</td><td>ok</td><td><pre>{ "a": 1 }</pre></td></tr><tr><td>HEADCHR</td><td>fail</td><td></td></tr></table>');
+    expect(out).toContain('| PHANTOM\\_UA | ok |');
+    expect(out).toContain('| HEADCHR | fail |');
+    expect(out).not.toContain('PHANTOM_UAok');
+  });
+  it('treats a table that holds a whole article in one cell as layout', () => {
+    const essay = 'A long paragraph of an essay that goes on. '.repeat(15);
+    const out = md(`<table><tr><td>${essay}<br><br>Second paragraph.</td><td><a href="/t">Translation</a></td></tr></table>`);
+    expect(out).toContain('Second paragraph.');
+    expect(out).toContain('[Translation](https://example.com/t)');
+    expect(out).not.toContain('| --- |');
+    expect(out).not.toMatch(/\| .*A long paragraph/);
+  });
   it('does not flatten layout tables into one row of text', () => {
     const out = md('<table><tr><td><p>Left <a href="/a">link</a></p></td><td><div>Right</div></td></tr></table>');
     expect(out).toContain('[link](https://example.com/a)');

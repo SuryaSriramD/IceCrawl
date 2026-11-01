@@ -31,15 +31,24 @@ turndown.remove(['script', 'style']);
 // turndown has no table support of its own; tables become GFM pipe tables (first row is the header)
 turndown.addRule('table', {
   filter: 'table',
-  replacement: (content, node) => {
+  replacement: (_content, node) => {
     const table = node as Element;
-    // tables used for page layout (nested tables, block content in cells) cannot be pipe tables: keep their content as it flows
-    if (table.querySelector('table table, td p, td ul, td ol, td div, td h1, td h2, td h3, td pre, td blockquote')) return `\n\n${content}\n\n`;
     // cell content goes through turndown so links and emphasis survive
-    const cell = (c: Element) => turndown.turndown(c.innerHTML).replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
-    const rows = Array.from(table.querySelectorAll('tr'))
-      .map((tr) => Array.from(tr.children).filter((c) => /^T[DH]$/i.test(c.nodeName)).map(cell))
-      .filter((r) => r.length > 0);
+    const inner = (c: Element) => turndown.turndown(c.innerHTML).trim();
+    const ownRows = Array.from(table.querySelectorAll('tr'))
+      .filter((tr) => tr.closest('table') === table)
+      .map((tr) => Array.from(tr.children).filter((c) => /^T[DH]$/i.test(c.nodeName)));
+    // A table used for page layout (nested tables, block content or a whole article in a cell) cannot be a pipe table:
+    // every cell becomes its own block, so neighbouring cells never run together.
+    const layout =
+      table.querySelector('table table, td p, td ul, td ol, td div, td h1, td h2, td h3, td blockquote') != null || // domino answers undefined, not null, when nothing matches
+      ownRows.some((cells) => cells.some((c) => (c.textContent ?? '').length > 400));
+    if (layout) {
+      const blocks = ownRows.flatMap((cells) => cells.map(inner)).filter((b) => b !== '');
+      return blocks.length === 0 ? '' : `\n\n${blocks.join('\n\n')}\n\n`;
+    }
+    const cell = (c: Element) => inner(c).replace(/\s+/g, ' ').replace(/\|/g, '\\|');
+    const rows = ownRows.map((cells) => cells.map(cell)).filter((r) => r.length > 0);
     if (rows.length === 0) return '';
     const width = Math.max(...rows.map((r) => r.length));
     const line = (r: string[]) => `| ${[...r, ...Array<string>(width - r.length).fill('')].join(' | ')} |`;
