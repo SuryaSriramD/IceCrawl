@@ -41,7 +41,7 @@ export async function renderBody(bytes: Uint8Array, contentType: string, finalUr
   if (documentKind) {
     try {
       const doc = o.isolateDocuments ? await convertDocumentIsolated(bytes, documentKind) : await convertDocument(bytes, documentKind);
-      // the converter's HTML is already the whole document: no readability pass, no tag filters
+      // the converter's HTML is already the whole document: no main-content pruning, no tag filters
       const c = convertHtml(doc.html, { url: finalUrl, onlyMainContent: false, removeBase64Images: o.removeBase64Images });
       return { kind: 'document', text: doc.html, ...c, title: doc.title ?? c.title, warnings: doc.warnings };
     } catch (err) {

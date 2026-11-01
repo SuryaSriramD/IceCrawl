@@ -36,7 +36,7 @@ IceCrawl latency (warm, browser engine): 1.4 to 5 s per page; the first scrape a
 - Receipts: every IceCrawl result carries a signed receipt that can be re-checked; Firecrawl has no equivalent.
 
 **Where Firecrawl was better**
-- **Completeness on non-article pages.** IceCrawl's default main-content mode uses a reading-mode algorithm (Readability) that drops link-dense lists, tag rows and some table content. It dropped sqlite's summary list and the quotes' tags. Firecrawl keeps more. `onlyMainContent: false` gives complete output in IceCrawl.
+- **Completeness on non-article pages.** IceCrawl's default main-content mode used a reading-mode algorithm (Readability) that dropped link-dense lists, tag rows and some table content. It dropped sqlite's summary list and the quotes' tags. Firecrawl kept more. This was reworked afterwards: see the last section.
 - **Looking like a person.** In direct mode IceCrawl's browser fails the usual headless checks (and says so in its user agent, by design). Firecrawl passes them. IceCrawl only hides those markers for requests that go through a configured proxy pool, which was not set up here.
 - **Getting through blocks.** Firecrawl escalated the 403 to a stealth proxy by itself. IceCrawl can escalate only to proxies you supply.
 - Search results with page excerpts, and a hosted extraction model.
@@ -46,5 +46,20 @@ IceCrawl latency (warm, browser engine): 1.4 to 5 s per page; the first scrape a
 - Data tables whose cells held code or long text were flattened with neighbouring cells glued together (`PHANTOM_UAok`), and an essay inside a layout table became one giant table cell. Layout tables now keep each cell as its own block, and data tables stay pipe tables.
 
 **Not fixed**
-- The aggressive default main-content mode (above). A better default needs a boilerplate-removal approach written independently of Firecrawl's code, and testing against the fixture corpus.
 - Direct-mode browser fingerprint (by design; see `docs/stealth.md`).
+
+## After reworking the default main-content mode
+
+The reading-mode algorithm was replaced (converter version 4). The default now picks the page's `<main>` or its only substantial `<article>` (otherwise the body) and removes navigation, banners, footers, sidebars, consent notices and hidden elements, without scoring text by link density. Same pages, same probes, run again:
+
+| Page | Before (default) | After (default) | Firecrawl |
+| --- | --- | --- | --- |
+| quotes `/js/` | 27/39 | **39/39** (tags and authors present) | complete |
+| sqlite.org/about | 8/15 | **14/15** (summary list back) | complete |
+| bot.sannysoft.com | 4/13 | **11/13** (proper tables) | complete |
+| RFC 1149 | 11/12 | **12/12** | 12/12 |
+| example, httpbin, tableful, PDF | complete | complete | complete |
+| paulgraham essay | clean, 2.6k characters | essay plus a short block of link rows, 4.0k characters | noisy layout table |
+| Wikipedia "Robots.txt" | n/a | 54k characters, begins with the language list | not measured |
+
+The price of completeness: pages with a lot of link furniture inside the content (Wikipedia's language list and reference lists, essays with translation links) come out longer and less tidy than before. That is the same trade Firecrawl makes. Use `excludeTags` to cut a known block, or `includeTags` to take one. The hostile and error cases are unchanged: the captcha, 403, 404 and login-wall pages are still refused. The 933 existing tests, the verdict benchmark and the pack smoke test pass.

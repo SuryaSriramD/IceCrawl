@@ -74,7 +74,7 @@ describe('convertHtml: the page heading under onlyMainContent', () => {
   const withTitle = (title: string, inner: string) => `<!doctype html><html><head><title>${title}</title></head><body>${inner}</body></html>`;
   const o = { url: 'https://example.com/x', onlyMainContent: true, removeBase64Images: true };
 
-  it('keeps the page h1 as an h1 instead of letting Readability turn it into an h2', () => {
+  it('keeps the page h1 as an h1 when it sits in the content', () => {
     const c = convertHtml(withTitle('Example Title', `<nav><a href="/">Home</a></nav><article><h1>The Big Story</h1>${body}</article>`), o);
     expect(c.markdown.startsWith('# The Big Story\n')).toBe(true);
   });
@@ -102,7 +102,56 @@ describe('convertHtml: the page heading under onlyMainContent', () => {
     expect(c.cleanHtml).not.toContain('<b>');
   });
 
-  it('is version 3 of the converter, so receipts made before this change report their replay as skipped', () => {
-    expect(CONVERTER).toEqual({ name: 'icecrawl-convert', version: '3' });
+  it('is version 4 of the converter, so receipts made before this change report their replay as skipped', () => {
+    expect(CONVERTER).toEqual({ name: 'icecrawl-convert', version: '4' });
+  });
+});
+
+describe('convertHtml: main content keeps what is content', () => {
+  const o = { url: 'https://example.com/x', onlyMainContent: true, removeBase64Images: true };
+  const filler = '<p>' + 'A real sentence of the page body that goes on for a while. '.repeat(6) + '</p>';
+  const md = (body: string, head = '') => convertHtml(`<!doctype html><html><head><title>T</title>${head}</head><body>${body}</body></html>`, o).markdown;
+
+  it('keeps lists, tags and other short link-heavy blocks that sit in the body', () => {
+    const out = md(`<h1>About</h1><ul><li><a href="/a">Full-featured SQL</a></li><li><a href="/b">Single-file database</a></li></ul>${filler}<div class="quote"><span>A quote</span> <div class="tags">Tags: <a href="/t1">change</a> <a href="/t2">deep-thoughts</a></div></div>`);
+    expect(out).toContain('[Full-featured SQL](https://example.com/a)');
+    expect(out).toContain('[Single-file database](https://example.com/b)');
+    expect(out).toContain('Tags: [change](https://example.com/t1)');
+  });
+
+  it('drops navigation, banners, footers, sidebars and consent notices', () => {
+    const out = md(
+      `<header><nav><a href="/">Home nav</a></nav></header><div class="cookie-banner">We use cookies</div><div id="sidebar"><a href="/x">Sidebar link</a></div><h1>The Page</h1>${filler}<aside>Related stuff</aside><footer>Copyright footer</footer>`,
+    );
+    for (const gone of ['Home nav', 'We use cookies', 'Sidebar link', 'Related stuff', 'Copyright footer']) expect(out, gone).not.toContain(gone);
+    expect(out).toContain('# The Page');
+    expect(out).toContain('A real sentence');
+  });
+
+  it('keeps a page header that carries the heading, and what sits inside the article', () => {
+    const out = md(`<header><h1>The Page</h1><nav><a href="/">Home nav</a></nav></header><main>${filler}<aside>A note inside the article</aside></main>`);
+    expect(out).toContain('# The Page');
+    expect(out).toContain('A note inside the article');
+    expect(out).not.toContain('Home nav');
+  });
+
+  it('does not mistake a wrapper that merely mentions a sidebar for furniture', () => {
+    const out = md(`<div class="layout has-sidebar"><div class="content"><h1>The Page</h1>${filler}</div></div>`);
+    expect(out).toContain('A real sentence');
+    const wrapped = md(`<div class="page-sidebar-layout"><h1>The Page</h1>${filler}</div>`);
+    expect(wrapped).toContain('A real sentence');
+  });
+
+  it('prefers the only article or the main element over the rest of the page', () => {
+    const out = md(`<div>Page-level chatter that is not the article</div><article><h1>Story</h1>${filler}</article>`);
+    expect(out).toContain('A real sentence');
+    expect(out).not.toContain('Page-level chatter');
+    const listing = md(`<article><h2>One</h2>${filler}</article><article><h2>Two</h2>${filler}</article>`);
+    expect(listing).toContain('## One');
+    expect(listing).toContain('## Two');
+  });
+
+  it('drops hidden elements', () => {
+    expect(md(`<h1>The Page</h1>${filler}<div hidden>secret hidden text</div>`)).not.toContain('secret hidden text');
   });
 });

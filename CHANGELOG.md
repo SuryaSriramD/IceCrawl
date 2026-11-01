@@ -4,6 +4,10 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Main content (`onlyMainContent`, the default) no longer uses a reading-mode algorithm that dropped lists, tags and table rows. It now scopes to the page's `<main>` or its only substantial `<article>` (else the whole body) and removes navigation, banners, footers, sidebars, consent notices and hidden elements. Pages that are not articles come out complete; pages with a lot of link furniture inside the content (for example Wikipedia) are longer than before. Converter version 4: receipts made with version 3 report their replay as skipped. `@mozilla/readability` is no longer a dependency.
+- A sign-in page with a footer is now a `login_wall`, and tables used for layout keep their cells apart.
+- A side-by-side test against Firecrawl is in docs/firecrawl-comparison.md.
+
 - Documents are converted in a worker thread with a time and memory limit, so a hostile file cannot stall the server; PDF and XML parts are bounded. Receipt replay in the CLI and SDK still converts in-process.
 - Session browsers cannot reach their own debugging port through the egress proxy.
 - Fixes found by running the Docker stack: an empty `ICECRAWL_INJECTION` (what compose passes for an unset setting) no longer stops the server from starting, compose forwards the model, proxy, monitor and interact settings to the worker as well, and the published `sdk`, `mcp` and `cli` packages declare the document libraries they need (the pack smoke test failed in CI without them).
