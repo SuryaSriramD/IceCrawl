@@ -79,6 +79,10 @@ export interface AppConfig {
   browserConcurrency: number;
   browserNoSandbox: boolean;
   signingKeyFile: string;
+  /** A signing key (PEM, plain or base64) given directly, for hosts without a persistent disk; wins over the file. */
+  signingKey?: string;
+  /** The webhook signing secret given directly; wins over the file. */
+  webhookSecret?: string;
   webhookSecretFile: string;
   runWorker: boolean;
   workerConcurrency: number;
@@ -134,6 +138,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     browserConcurrency: Number(env.ICECRAWL_BROWSER_CONCURRENCY ?? 4),
     browserNoSandbox: env.ICECRAWL_BROWSER_NO_SANDBOX === 'true',
     signingKeyFile: env.ICECRAWL_SIGNING_KEY_FILE ?? './data/signing-key.pem',
+    signingKey: env.ICECRAWL_SIGNING_KEY || undefined,
+    webhookSecret: env.ICECRAWL_WEBHOOK_SECRET || undefined,
     webhookSecretFile: env.ICECRAWL_WEBHOOK_SECRET_FILE ?? './data/webhook-secret',
     runWorker: env.ICECRAWL_RUN_WORKER !== 'false',
     workerConcurrency: Number(env.ICECRAWL_WORKER_CONCURRENCY ?? 8),
@@ -142,7 +148,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jobPageBytes: Number(env.ICECRAWL_JOB_PAGE_BYTES ?? 10 * 1024 * 1024),
     maxCrawlLimit: Number(env.ICECRAWL_MAX_CRAWL_LIMIT ?? 100_000),
     allowIgnoreRobots: env.ICECRAWL_ALLOW_IGNORE_ROBOTS === 'true',
-    publicUrl: env.ICECRAWL_PUBLIC_URL || undefined,
+    publicUrl: env.ICECRAWL_PUBLIC_URL || env.RENDER_EXTERNAL_URL || undefined,
     llm: loadLlm(env),
     llmMaxInputChars: positiveInt(env, 'ICECRAWL_LLM_MAX_INPUT_CHARS', 100_000),
     llmMaxOutputTokens: positiveInt(env, 'ICECRAWL_LLM_MAX_OUTPUT_TOKENS', 4096),

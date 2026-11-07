@@ -73,6 +73,16 @@ describe('loadConfig operations settings', () => {
   });
 });
 
+describe('loadConfig keys from the environment', () => {
+  it('reads a signing key and a webhook secret directly, and treats empty values as unset', () => {
+    expect(loadConfig({}).signingKey).toBeUndefined();
+    expect(loadConfig({ ICECRAWL_SIGNING_KEY: '', ICECRAWL_WEBHOOK_SECRET: '' }).webhookSecret).toBeUndefined();
+    const c = loadConfig({ ICECRAWL_SIGNING_KEY: 'abc', ICECRAWL_WEBHOOK_SECRET: 'shh' });
+    expect(c.signingKey).toBe('abc');
+    expect(c.webhookSecret).toBe('shh');
+  });
+});
+
 describe('loadConfig dashboard', () => {
   it('is on unless turned off', () => {
     expect(loadConfig({}).dashboard).toBe(true);

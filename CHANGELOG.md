@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Hosting without a persistent disk: `ICECRAWL_SIGNING_KEY` and `ICECRAWL_WEBHOOK_SECRET` can be given directly, the Docker image can be built without the browser (`ICECRAWL_INSTALL_BROWSER=false`), and a `render.yaml` blueprint with docs/render.md describes a free-tier Render setup without the browser engine.
+
 - Main content (`onlyMainContent`, the default) no longer uses a reading-mode algorithm that dropped lists, tags and table rows. It now scopes to the page's `<main>` or its only substantial `<article>` (else the whole body) and removes navigation, banners, footers, sidebars, consent notices and hidden elements. Pages that are not articles come out complete; pages with a lot of link furniture inside the content (for example Wikipedia) are longer than before. Converter version 4: receipts made with version 3 report their replay as skipped. `@mozilla/readability` is no longer a dependency.
 - A sign-in page with a footer is now a `login_wall`, and tables used for layout keep their cells apart.
 - A side-by-side test against Firecrawl is in docs/firecrawl-comparison.md.

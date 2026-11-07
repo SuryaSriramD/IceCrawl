@@ -51,6 +51,8 @@ curl -s http://localhost:3002/v2/scrape \
 
 **On a Mac with Claude and Codex:** `./scripts/setup-mac.sh --search` does all of the above and prints the settings to paste into both apps. See [docs/macos.md](docs/macos.md).
 
+**On Render's free tier** (no browser engine, with limits): [docs/render.md](docs/render.md).
+
 **From source** (Node 20.12+, pnpm, Docker for Postgres and Redis):
 
 ```bash

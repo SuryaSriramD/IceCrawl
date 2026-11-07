@@ -12,7 +12,7 @@ import type { JobDeps } from './jobs/processor';
 import type { DeliveryDeps } from './jobs/webhooks';
 import { RedisRateLimiter, type RateLimiter } from './ratelimit';
 import type { ExtractionDeps } from './scrape-service';
-import { loadOrCreateSigningKey } from './signing';
+import { loadOrCreateSigningKey, signingKeyFromEnv } from './signing';
 import { migrate } from './store/migrate';
 import { PgMonitorStore } from './store/monitor-pg';
 import { PgStore, createSql } from './store/pg';
@@ -47,8 +47,8 @@ export async function createRuntime(config: AppConfig): Promise<Runtime> {
   const store = new PgStore(sql);
   const monitors = new PgMonitorStore(sql);
   const snapshots = new FileSnapshotStore(config.snapshotDir);
-  const signer = await loadOrCreateSigningKey(config.signingKeyFile, store);
-  const webhookSecret = await loadOrCreateWebhookSecret(config.webhookSecretFile);
+  const signer = config.signingKey ? await signingKeyFromEnv(config.signingKey, store) : await loadOrCreateSigningKey(config.signingKeyFile, store);
+  const webhookSecret = config.webhookSecret ?? (await loadOrCreateWebhookSecret(config.webhookSecretFile));
 
   const browser = config.browserEnabled
     ? createPlaywrightEngine({

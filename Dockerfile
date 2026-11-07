@@ -3,7 +3,9 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @icecrawl/engines exec playwright-core install --with-deps chromium
+# Set to false for small hosts that run without the browser engine (ICECRAWL_BROWSER=false): the image is much smaller.
+ARG ICECRAWL_INSTALL_BROWSER=true
+RUN if [ "$ICECRAWL_INSTALL_BROWSER" != "false" ]; then pnpm --filter @icecrawl/engines exec playwright-core install --with-deps chromium; fi
 ENV ICECRAWL_BROWSER_NO_SANDBOX=true
 EXPOSE 3002
 # the API container answers /ready; the worker container has no HTTP port and turns this off in docker-compose.yml

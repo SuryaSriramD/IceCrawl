@@ -1,0 +1,47 @@
+# Render blueprint: IceCrawl without the browser engine, on free instances (see docs/render.md).
+# Create it from the Render dashboard: New > Blueprint > pick this repository. Render asks for ICECRAWL_SIGNING_KEY.
+services:
+  - type: web
+    name: icecrawl
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /ready
+    envVars:
+      # build argument: leave Chromium out of the image (a free instance has too little memory to run it)
+      - key: ICECRAWL_INSTALL_BROWSER
+        value: "false"
+      - key: ICECRAWL_BROWSER
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: icecrawl-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: icecrawl-redis
+          property: connectionString
+      # a free instance has no persistent disk: keep the signing key in the environment so receipts stay verifiable
+      - key: ICECRAWL_SIGNING_KEY
+        sync: false
+      - key: ICECRAWL_WEBHOOK_SECRET
+        generateValue: true
+      - key: ICECRAWL_SNAPSHOT_DIR
+        value: /tmp/snapshots
+      - key: ICECRAWL_RATE_LIMIT_PER_MINUTE
+        value: "60"
+
+  - type: keyvalue
+    name: icecrawl-redis
+    plan: free
+    # the job queue must never lose entries to eviction
+    maxmemoryPolicy: noeviction
+    # empty: reachable only from services in the same Render account and region
+    ipAllowList: []
+
+databases:
+  - name: icecrawl-db
+    plan: free
+    databaseName: icecrawl
+    user: icecrawl

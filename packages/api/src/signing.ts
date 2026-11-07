@@ -18,6 +18,16 @@ async function register(store: Store, pem: string): Promise<PrivateSigningKey> {
   return privateKey;
 }
 
+/**
+ * A signing key given through the environment (for hosts without a persistent disk): a PEM, either as is, with `\n`
+ * written out, or base64 encoded. The key is registered in the store like a key read from a file.
+ */
+export async function signingKeyFromEnv(value: string, store: Store): Promise<PrivateSigningKey> {
+  const text = value.includes('BEGIN') ? value.replace(/\\n/g, '\n') : Buffer.from(value, 'base64').toString('utf8');
+  if (!text.includes('BEGIN')) throw new Error('ICECRAWL_SIGNING_KEY must be a PEM private key, plain or base64 encoded');
+  return register(store, text.trim() + '\n');
+}
+
 export async function loadOrCreateSigningKey(file: string, store: Store): Promise<PrivateSigningKey> {
   let pem = await readPem(file);
   if (pem === null) {
