@@ -3,6 +3,10 @@ import type { ScrapeRun } from '@icecrawl/scraper';
 
 const dataUri = (mime: string, bytes: Uint8Array) => `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
 
+/** What to try next when a site refused the request: it is usually the address, not the code. */
+const REFUSED_HINT =
+  ' Many sites (job boards, retailers, social networks) refuse requests from servers and cloud addresses. Run IceCrawl on your own computer, where it uses your home connection, with the browser engine on (ICECRAWL_BROWSER=true), or route it through your own proxies with ICECRAWL_PROXIES_ENHANCED (docs/stealth.md).';
+
 export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { status: number; payload: Record<string, unknown> } {
   const trust: TrustBlock = {
     verdict: run.verdict,
@@ -33,7 +37,7 @@ export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { sta
       payload: {
         success: false,
         code,
-        error: `Scrape was not trustworthy: ${run.verdict} (${run.reasons.join(', ')})`,
+        error: `Scrape was not trustworthy: ${run.verdict} (${run.reasons.join(', ')})${run.verdict === 'blocked' || run.verdict === 'captcha' ? REFUSED_HINT : ''}`,
         trust,
       },
     };

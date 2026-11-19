@@ -19,6 +19,6 @@ The answer is `{ success, data: { source, board?, total, jobs: [...], trust?, wa
 ## Limits
 
 - It reads one company at a time. It does not search across companies or job-board sites.
-- It does not get past sites that block the request (Indeed, Glassdoor, Naukri and similar block cloud addresses); those return a blocked verdict as any scrape does.
+- It does not get past sites that block the request (Indeed, Glassdoor, Naukri and similar block cloud addresses); those return a blocked verdict as any scrape does, with a hint on what to try. From a home connection with the browser engine on, Indeed India, Glassdoor, Instahyre, Internshala and Cutshort loaded in testing; Naukri still refused. Running IceCrawl on your own computer, or through your own proxies (`docs/stealth.md`), is the way to reach them; a hosted server on a cloud address usually cannot.
 - Job text comes from outside and is untrusted: the MCP tool marks it so, and the usual injection scan runs on scraped pages.
 - Workday returns at most the `limit` newest postings, 20 per request. The ATS API calls go straight to the vendors' public hosts, which are fixed in the code and never taken from the request.

@@ -111,6 +111,7 @@ describe('POST /v2/scrape', () => {
     expect(res.statusCode).toBe(502);
     const body = res.json();
     expect(body).toMatchObject({ success: false, code: 'CAPTCHA' });
+    expect(body.error).toContain('ICECRAWL_PROXIES_ENHANCED');
     expect(body.trust).toMatchObject({ verdict: 'captcha' });
     expect(body.data).toBeUndefined();
   });
