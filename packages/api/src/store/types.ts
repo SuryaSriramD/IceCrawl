@@ -6,6 +6,10 @@ export interface ApiKeyRow {
   revoked: boolean;
 }
 
+export interface ApiKeyListing extends ApiKeyRow {
+  createdAt: string;
+}
+
 export interface ScrapeRecord {
   id: string;
   apiKeyId: string | null;
@@ -110,6 +114,8 @@ export interface Store {
   findApiKeyByHash(hash: string): Promise<ApiKeyRow | null>;
   createApiKey(k: { id: string; hash: string; name: string }): Promise<void>;
   revokeApiKey(id: string): Promise<void>;
+  /** Every key, newest first. Never includes the key itself, which is not stored. */
+  listApiKeys(): Promise<ApiKeyListing[]>;
   saveScrape(
     rec: ScrapeRecord,
     receipt: Receipt,

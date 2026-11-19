@@ -60,7 +60,7 @@ export async function usagePage() {
     h(
       'div',
       { class: 'panel' },
-      h('p', {}, 'Keys are created on the server so that no key can mint more keys. Run one of these where IceCrawl runs:'),
+      h('p', {}, h('a', { href: '#/keys' }, 'Generate and revoke API keys'), ' on the API keys page (it asks for the admin token of the server). Without an admin token, run this where IceCrawl runs:'),
       h('pre', {}, 'pnpm --filter @icecrawl/api keys:create my-key   # prints the key once; only its hash is stored'),
       h('p', { class: 'muted' }, 'This dashboard keeps the key you enter only for this browser tab (session storage) and sends it only to this server.'),
     ),

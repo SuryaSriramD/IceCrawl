@@ -27,6 +27,9 @@ services:
         sync: false
       - key: ICECRAWL_WEBHOOK_SECRET
         generateValue: true
+      # lets you create API keys from the dashboard (read the value in the service's Environment tab)
+      - key: ICECRAWL_ADMIN_TOKEN
+        generateValue: true
       - key: ICECRAWL_SNAPSHOT_DIR
         value: /tmp/snapshots
       - key: ICECRAWL_RATE_LIMIT_PER_MINUTE

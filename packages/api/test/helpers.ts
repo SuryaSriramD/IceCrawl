@@ -29,7 +29,7 @@ export function fakeEngine(result: Partial<EngineResult> & { html?: string }): E
 }
 
 export async function makeApp(
-  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number; sessions?: SessionManager | null; providers?: readonly DataProvider[] } = {},
+  opts: { engine?: Engine; useAuth?: boolean; strict?: boolean; injection?: 'off' | 'flag' | 'quarantine'; signer?: PrivateSigningKey; extraction?: ExtractionDeps; search?: SearchProvider | null; searchMaxScrape?: number; maxUploadBytes?: number; sessions?: SessionManager | null; providers?: readonly DataProvider[]; adminToken?: string } = {},
 ) {
   const store = new MemoryStore();
   const snapshots = new MemorySnapshotStore();
@@ -48,6 +48,7 @@ export async function makeApp(
     maxUploadBytes: opts.maxUploadBytes,
     sessions: opts.sessions,
     providers: opts.providers,
+    adminToken: opts.adminToken,
   });
   return { app, store, snapshots, keyId, auth: { authorization: 'Bearer ic-test' } };
 }

@@ -334,6 +334,18 @@ export function describeStoreContract(name: string, make: () => Promise<Store>) 
       expect((await store.searchScrapes(keyB, 'pricing', 10)).map((h) => h.url)).toEqual(['https://other.example/pricing']);
     });
 
+    it('lists api keys newest first with their revocation, without any secret', async () => {
+      const a = randomUUID();
+      const b = randomUUID();
+      await store.createApiKey({ id: a, hash: `hash-${a}`, name: 'first' });
+      await new Promise((r) => setTimeout(r, 5));
+      await store.createApiKey({ id: b, hash: `hash-${b}`, name: 'second' });
+      await store.revokeApiKey(a);
+      const listed = (await store.listApiKeys()).filter((k) => k.id === a || k.id === b);
+      expect(listed.map((k) => [k.name, k.revoked])).toEqual([['second', false], ['first', true]]);
+      expect(Object.keys(listed[0]).sort()).toEqual(['createdAt', 'id', 'name', 'revoked']);
+    });
+
     it('lists the newest jobs of one type for one key', async () => {
       const keyA = randomUUID();
       await store.createApiKey({ id: keyA, hash: `hash-${keyA}`, name: 'a' });

@@ -20,6 +20,27 @@ export const keyStore = {
   },
 };
 
+const ADMIN = 'icecrawl.adminToken';
+
+/** The admin token for key management, held like the API key: for this tab only. */
+export const adminStore = {
+  get() {
+    try {
+      return sessionStorage.getItem(ADMIN) ?? '';
+    } catch {
+      return '';
+    }
+  },
+  set(value) {
+    try {
+      if (value) sessionStorage.setItem(ADMIN, value);
+      else sessionStorage.removeItem(ADMIN);
+    } catch {
+      // storage can be blocked; the token then lasts until the page is reloaded
+    }
+  },
+};
+
 export class ApiError extends Error {
   /** @param {number} status @param {string} code @param {string} message @param {unknown} body */
   constructor(status, code, message, body) {
@@ -30,10 +51,10 @@ export class ApiError extends Error {
   }
 }
 
-/** @param {string} path @param {{method?: string, body?: unknown, form?: FormData, raw?: boolean}} [o] */
+/** @param {string} path @param {{method?: string, body?: unknown, form?: FormData, raw?: boolean, token?: string}} [o] */
 async function call(path, o = {}) {
   const headers = {};
-  const key = keyStore.get();
+  const key = o.token ?? keyStore.get();
   if (key) headers.authorization = `Bearer ${key}`;
   let body;
   if (o.form) body = o.form;
@@ -66,6 +87,13 @@ export const api = {
   async bytes(path) {
     return new Uint8Array(await (await call(path, { raw: true })).arrayBuffer());
   },
+};
+
+/** Key management calls carry the admin token instead of an API key. */
+export const admin = {
+  get: (path) => call(path, { token: adminStore.get() }),
+  post: (path, body) => call(path, { method: 'POST', body, token: adminStore.get() }),
+  del: (path) => call(path, { method: 'DELETE', token: adminStore.get() }),
 };
 
 /** Waits for a job started with `start` to leave `processing`; `read(id)` returns the status object. */

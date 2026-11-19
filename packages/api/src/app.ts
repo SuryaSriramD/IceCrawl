@@ -6,6 +6,7 @@ import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
+import { registerAdminRoutes } from './routes/admin';
 import { registerAgentRoutes } from './routes/agent';
 import { registerDashboardRoutes } from './routes/dashboard';
 import { registerIndexRoutes } from './routes/index-search';
@@ -42,6 +43,8 @@ export interface AppDeps {
   providers?: readonly DataProvider[];
   /** Serve the web dashboard at /dashboard (default true). */
   dashboard?: boolean;
+  /** Enables key management (/admin/keys) for the dashboard; leave unset to keep it off. */
+  adminToken?: string;
   /** Shortest time between two scheduled monitor runs (default 15). */
   monitorMinIntervalMinutes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
@@ -102,6 +105,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   if (deps.dashboard !== false) registerDashboardRoutes(app);
+  registerAdminRoutes(app, { store: deps.store, adminToken: deps.adminToken });
 
   app.get('/.well-known/icecrawl-keys.json', async () => ({ keys: await deps.store.listPublicKeys() }));
 

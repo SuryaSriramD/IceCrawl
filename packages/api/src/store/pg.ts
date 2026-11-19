@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt, Verdict } from '@icecrawl/core';
-import type { ActivityRow, ApiKeyRow, IndexHit, JobError, JobRecord, JobStatus, JobType, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
+import type { ActivityRow, ApiKeyListing, ApiKeyRow, IndexHit, JobError, JobRecord, JobStatus, JobType, NewJob, ScrapeRecord, SnapshotMeta, Store, Usage } from './types';
 
 export function createSql(url: string): postgres.Sql {
   return postgres(url, { onnotice: () => {}, max: 10 });
@@ -34,6 +34,11 @@ export class PgStore implements Store {
 
   async createApiKey(k: { id: string; hash: string; name: string }): Promise<void> {
     await this.sql`insert into api_keys (id, hash, name) values (${k.id}, ${k.hash}, ${k.name})`;
+  }
+
+  async listApiKeys(): Promise<ApiKeyListing[]> {
+    const rows = await this.sql`select id, name, created_at, revoked_at from api_keys order by created_at desc, id`;
+    return rows.map((r) => ({ id: r.id, name: r.name, revoked: r.revoked_at !== null, createdAt: new Date(r.created_at).toISOString() }));
   }
 
   async revokeApiKey(id: string): Promise<void> {

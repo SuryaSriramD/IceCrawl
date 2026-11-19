@@ -2,6 +2,7 @@ import { api, ApiError, keyStore } from './lib/api.js';
 import { h, replace } from './lib/dom.js';
 import { errorBox } from './lib/ui.js';
 import { jobsPage } from './pages/jobs.js';
+import { keysPage } from './pages/keys.js';
 import { monitorsPage } from './pages/monitors.js';
 import { playgroundPage } from './pages/playground.js';
 import { receiptsPage } from './pages/receipts.js';
@@ -13,6 +14,7 @@ const pages = [
   ['jobs', 'Jobs', jobsPage],
   ['receipts', 'Receipts', receiptsPage],
   ['monitors', 'Monitors', monitorsPage],
+  ['keys', 'API keys', keysPage],
 ];
 
 const view = document.getElementById('view');

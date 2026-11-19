@@ -60,6 +60,7 @@ services:
       ICECRAWL_PUBLIC_URL: ${ICECRAWL_PUBLIC_URL:-}
       ICECRAWL_MAX_UPLOAD_BYTES: ${ICECRAWL_MAX_UPLOAD_BYTES:-}
       ICECRAWL_DASHBOARD: ${ICECRAWL_DASHBOARD:-}
+      ICECRAWL_ADMIN_TOKEN: ${ICECRAWL_ADMIN_TOKEN:-}
       ICECRAWL_INTERACT_CODE: ${ICECRAWL_INTERACT_CODE:-}
       ICECRAWL_INTERACT_MAX_SESSIONS: ${ICECRAWL_INTERACT_MAX_SESSIONS:-}
     ports: ["3002:3002"]
@@ -90,6 +91,12 @@ services:
     volumes: ["./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro"]
     environment:
       SEARXNG_BASE_URL: http://localhost:${SEARXNG_PORT:-8080}/
+# Pinned so it can't collide with the Hyper-V Default Switch (random 172.x each boot).
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.232.0.0/24
 volumes:
   pgdata: {}
   snapshots: {}

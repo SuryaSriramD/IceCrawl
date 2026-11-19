@@ -1,10 +1,10 @@
 import type { PublicKeyEntry, Receipt, ReceiptSignature, SignedReceipt } from '@icecrawl/core';
 import { randomUUID } from 'node:crypto';
 import { sha256Hex } from '@icecrawl/trust';
-import { snapshotKey, type ActivityRow, type IndexHit, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type JobType, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
+import { snapshotKey, type ActivityRow, type IndexHit, type ApiKeyListing, type ApiKeyRow, type JobError, type JobRecord, type JobStatus, type JobType, type NewJob, type ScrapeRecord, type SnapshotMeta, type SnapshotStore, type Store, type Usage } from './types';
 
 export class MemoryStore implements Store {
-  private keys = new Map<string, { id: string; name: string; revoked: boolean }>();
+  private keys = new Map<string, { id: string; name: string; revoked: boolean; createdAt: string }>();
   private scrapes = new Map<string, ScrapeRecord>();
   private receipts = new Map<string, { receipt: Receipt; signature: ReceiptSignature | null }>();
   private publicKeys: PublicKeyEntry[] = [];
@@ -13,10 +13,13 @@ export class MemoryStore implements Store {
 
   async findApiKeyByHash(hash: string): Promise<ApiKeyRow | null> {
     const k = this.keys.get(hash);
-    return k ? { ...k } : null;
+    return k ? { id: k.id, name: k.name, revoked: k.revoked } : null;
   }
   async createApiKey(k: { id: string; hash: string; name: string }): Promise<void> {
-    this.keys.set(k.hash, { id: k.id, name: k.name, revoked: false });
+    this.keys.set(k.hash, { id: k.id, name: k.name, revoked: false, createdAt: new Date().toISOString() });
+  }
+  async listApiKeys(): Promise<ApiKeyListing[]> {
+    return [...this.keys.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((k) => ({ ...k }));
   }
   async revokeApiKey(id: string): Promise<void> {
     for (const k of this.keys.values()) if (k.id === id) k.revoked = true;

@@ -19,6 +19,12 @@ function nonNegativeInt(env: NodeJS.ProcessEnv, name: string, fallback: number):
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
+function loadAdminToken(env: NodeJS.ProcessEnv): string | undefined {
+  const token = env.ICECRAWL_ADMIN_TOKEN || undefined;
+  if (token !== undefined && token.length < 16) throw new Error('ICECRAWL_ADMIN_TOKEN must be at least 16 characters');
+  return token;
+}
+
 function loadLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   const level = env.ICECRAWL_LOG_LEVEL || 'info';
   if (!(LOG_LEVELS as readonly string[]).includes(level)) {
@@ -106,6 +112,8 @@ export interface AppConfig {
   /** JSON file describing external data providers for the index; undefined when not configured. */
   providersFile?: string;
   dashboard: boolean;
+  /** The secret for key management in the dashboard (POST /admin/keys); key management is off when unset. */
+  adminToken?: string;
   /** Operator proxy pools (http(s) URLs); empty when not configured. */
   proxiesEnhanced: string[];
   proxiesStealth: string[];
@@ -161,6 +169,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     monitorMaxPages: positiveInt(env, 'ICECRAWL_MONITOR_MAX_PAGES', 50),
     providersFile: env.ICECRAWL_PROVIDERS_FILE || undefined,
     dashboard: env.ICECRAWL_DASHBOARD !== 'false',
+    adminToken: loadAdminToken(env),
     proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),

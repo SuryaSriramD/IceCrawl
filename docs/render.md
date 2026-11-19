@@ -8,7 +8,7 @@ This runs IceCrawl on Render without Docker on your computer, so Claude and Code
 - **Sleeping.** A free web service sleeps after about 15 minutes without requests. The first request afterwards takes up to a minute while it starts. The MCP client waits up to 5 minutes, so it works, but the first tool call after a pause is slow.
 - **The free database expires** after about 30 days. When it does, API keys, receipts, jobs and monitors are gone. Upgrade the database to a paid plan to keep them, or recreate it and make new keys.
 - **No persistent disk.** Stored page snapshots live in `/tmp` and are lost whenever the service restarts, so old receipts can still be checked for their signature but not against the saved page. The signing key does not depend on the disk (see step 1), so receipts stay verifiable.
-- No shell on a free service: you create API keys from your own computer (step 4).
+- No shell on a free service: you create API keys in the dashboard with the admin token (step 4).
 
 If these are too much, a small paid instance or a cheap VPS running `docker compose` (see the README) gives you the whole thing.
 
@@ -21,11 +21,11 @@ If these are too much, a small paid instance or a cheap VPS running `docker comp
    Keep the output; it is your `ICECRAWL_SIGNING_KEY`. Do not commit it.
 2. **Create the blueprint.** In the Render dashboard choose New > Blueprint, pick your copy of this repository (the one with `render.yaml`) and paste the key when it asks for `ICECRAWL_SIGNING_KEY`. Render creates a web service, a free Postgres database and a free Key Value (Redis). The first build takes a few minutes. When `/ready` answers, the service is up; migrations run on start.
 3. **Note the address**, for example `https://icecrawl-xxxx.onrender.com`. `https://<address>/dashboard/` is the dashboard.
-4. **Create an API key** from your computer, in a clone of the repository (`pnpm install` once). In the Render dashboard open the database and copy its **External Database URL**, then add `?sslmode=require` to the end:
+4. **Create an API key** in the IceCrawl dashboard: open `https://<address>/dashboard/#/keys`, enter the admin token (Render generated it as `ICECRAWL_ADMIN_TOKEN`: read it in the service's Environment tab) and press Generate key. Copy the key at once; it is shown only once. (Or, from a clone of the repository with `pnpm install` done: in the Render dashboard open the database and copy its **External Database URL**, add `?sslmode=require` to the end, and run:
    ```bash
    DATABASE_URL='postgres://...render.com/icecrawl?sslmode=require' pnpm --filter @icecrawl/api keys:create me
    ```
-   It prints the key once.
+   It prints the key once.)
 5. **Connect Claude and Codex.** The MCP server runs on your computer and talks to your Render service. Use the commands and settings from the README (or `docs/macos.md`), with these two values:
    ```
    ICECRAWL_API_URL=https://icecrawl-xxxx.onrender.com

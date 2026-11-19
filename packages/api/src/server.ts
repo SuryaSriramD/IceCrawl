@@ -24,6 +24,7 @@ const app = buildApp({
   monitors: rt.monitors,
   providers: rt.providers,
   dashboard: config.dashboard,
+  adminToken: config.adminToken,
   monitorMinIntervalMinutes: config.monitorMinIntervalMinutes,
   rateLimiter: rt.rateLimiter,
   team: { workerConcurrency: config.workerConcurrency },

@@ -83,6 +83,15 @@ describe('loadConfig keys from the environment', () => {
   });
 });
 
+describe('loadConfig admin token', () => {
+  it('is off unless set, and must be long enough to be a secret', () => {
+    expect(loadConfig({}).adminToken).toBeUndefined();
+    expect(loadConfig({ ICECRAWL_ADMIN_TOKEN: '' }).adminToken).toBeUndefined();
+    expect(loadConfig({ ICECRAWL_ADMIN_TOKEN: 'a-long-enough-admin-token' }).adminToken).toBe('a-long-enough-admin-token');
+    expect(() => loadConfig({ ICECRAWL_ADMIN_TOKEN: 'short' })).toThrow(/ICECRAWL_ADMIN_TOKEN/);
+  });
+});
+
 describe('loadConfig dashboard', () => {
   it('is on unless turned off', () => {
     expect(loadConfig({}).dashboard).toBe(true);

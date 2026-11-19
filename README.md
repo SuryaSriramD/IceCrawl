@@ -41,7 +41,7 @@ docker compose --profile search up -d --build        # "search" adds SearXNG for
 docker compose exec api pnpm --filter @icecrawl/api keys:create me     # prints an API key once
 ```
 
-Open **http://localhost:3002/dashboard/**, paste the key, and try the Playground. Or from a terminal:
+Open **http://localhost:3002/dashboard/**, paste the key, and try the Playground. To make keys from the dashboard instead of the command line, set `ICECRAWL_ADMIN_TOKEN` (16+ characters) and use its **API keys** page. Or from a terminal:
 
 ```bash
 curl -s http://localhost:3002/v2/scrape \
