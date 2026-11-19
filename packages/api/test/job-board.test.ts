@@ -227,6 +227,8 @@ describe('POST /v2/jobs/search', () => {
 
     const backend = (await search(t, { boards: ['greenhouse:acme', 'lever:beta'], query: 'backend' })).json().data;
     expect(backend.jobs.map((j: { title: string }) => j.title)).toEqual(['Senior Backend Engineer', 'Backend Developer']);
+    const ranked = (await search(t, { boards: ['greenhouse:acme', 'lever:beta'], query: 'go' })).json().data.jobs;
+    expect(ranked.map((j: { title: string }) => j.title)).toEqual(['Senior Backend Engineer']);
     expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], remote: true })).json().data.jobs).toHaveLength(1);
     expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], location: 'pune' })).json().data.jobs).toHaveLength(1);
     expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], query: 'go postgres', limit: 1 })).json().data.jobs).toHaveLength(1);

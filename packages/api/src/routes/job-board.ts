@@ -180,6 +180,10 @@ export function registerJobBoardRoute(v2: FastifyInstance, deps: JobBoardRouteDe
         jobs.push(...x.r.data.jobs.filter((j) => matches(j, filter)));
       }
     }
+    // jobs whose title has every word come first, then the ones that only mention them in the description
+    const words = (filter.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+    const inTitle = (j: JobPosting) => (words.every((w) => j.title.toLowerCase().includes(w)) ? 0 : 1);
+    jobs.sort((a, b) => inTitle(a) - inTitle(b));
     return { success: true, data: { boardsRead: entries.length - errors.length, scanned, total: jobs.length, jobs: jobs.slice(0, limit), errors } };
   });
 }
