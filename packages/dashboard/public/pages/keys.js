@@ -105,7 +105,7 @@ export async function keysPage({ rerender }) {
       await admin.get('/admin/keys');
     } catch (err) {
       adminStore.set('');
-      throw err.status === 404 ? new Error('Key management is turned off on this server: set ICECRAWL_ADMIN_TOKEN (at least 16 characters) and restart it.') : err;
+      throw err.status === 404 ? new Error('Key management is turned off on this server: set ICECRAWL_ADMIN_TOKEN (at least 16 characters) and restart it.') : err.status === 401 ? new Error('That is not the admin token. It is the ICECRAWL_ADMIN_TOKEN setting of the server, not an API key.') : err.status === 429 ? new Error('Too many wrong tries. Wait a minute and try again.') : err;
     }
     await rerender();
     return h('p', { class: 'muted' }, 'Unlocked.');
