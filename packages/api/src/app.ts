@@ -45,6 +45,8 @@ export interface AppDeps {
   dashboard?: boolean;
   /** Enables key management (/admin/keys) for the dashboard; leave unset to keep it off. */
   adminToken?: string;
+  /** Key management without a token; only for a server that nobody else can reach. */
+  adminOpen?: boolean;
   /** Shortest time between two scheduled monitor runs (default 15). */
   monitorMinIntervalMinutes?: number;
   /** Limits work-creating (POST) requests per API key; omit for no limit. */
@@ -105,7 +107,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   if (deps.dashboard !== false) registerDashboardRoutes(app);
-  registerAdminRoutes(app, { store: deps.store, adminToken: deps.adminToken });
+  registerAdminRoutes(app, { store: deps.store, adminToken: deps.adminToken, adminOpen: deps.adminOpen });
 
   app.get('/.well-known/icecrawl-keys.json', async () => ({ keys: await deps.store.listPublicKeys() }));
 

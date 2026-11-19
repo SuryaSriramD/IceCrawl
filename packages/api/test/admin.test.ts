@@ -12,6 +12,15 @@ describe('/admin/keys', () => {
     }
   });
 
+  it('works without a token only when explicitly opened, and a token still wins', async () => {
+    const { app } = await makeApp({ adminOpen: true });
+    const made = await app.inject({ method: 'POST', url: '/admin/keys', payload: { name: 'local' } });
+    expect(made.json().data.key).toMatch(/^ic-/);
+    expect((await app.inject({ method: 'GET', url: '/admin/keys' })).statusCode).toBe(200);
+    const both = (await makeApp({ adminOpen: true, adminToken: TOKEN })).app;
+    expect((await both.inject({ method: 'GET', url: '/admin/keys' })).statusCode).toBe(401);
+  });
+
   it('needs the admin token, and an API key is not one', async () => {
     const { app, auth } = await makeApp({ adminToken: TOKEN });
     expect((await app.inject({ method: 'GET', url: '/admin/keys' })).statusCode).toBe(401);

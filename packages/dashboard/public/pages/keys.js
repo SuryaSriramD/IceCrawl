@@ -87,7 +87,7 @@ async function manage(rerender) {
 
 export async function keysPage({ rerender }) {
   const intro = h('p', { class: 'muted' }, 'API keys let Claude, Codex and your own code use this server. Keys are made here with the admin token (the ICECRAWL_ADMIN_TOKEN setting of the server), which is not an API key.');
-  if (adminStore.get()) {
+  {
     try {
       return h('div', {}, h('h1', {}, 'API keys'), intro, await manage(rerender));
     } catch (err) {

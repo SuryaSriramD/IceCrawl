@@ -114,6 +114,8 @@ export interface AppConfig {
   dashboard: boolean;
   /** The secret for key management in the dashboard (POST /admin/keys); key management is off when unset. */
   adminToken?: string;
+  /** ICECRAWL_ADMIN_OPEN=true: key management in the dashboard needs no token (use only when the port is not reachable by others). */
+  adminOpen: boolean;
   /** Operator proxy pools (http(s) URLs); empty when not configured. */
   proxiesEnhanced: string[];
   proxiesStealth: string[];
@@ -170,6 +172,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     providersFile: env.ICECRAWL_PROVIDERS_FILE || undefined,
     dashboard: env.ICECRAWL_DASHBOARD !== 'false',
     adminToken: loadAdminToken(env),
+    adminOpen: env.ICECRAWL_ADMIN_OPEN === 'true',
     proxiesEnhanced: parseProxyList(env.ICECRAWL_PROXIES_ENHANCED, 'ICECRAWL_PROXIES_ENHANCED', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxiesStealth: parseProxyList(env.ICECRAWL_PROXIES_STEALTH, 'ICECRAWL_PROXIES_STEALTH', env.ICECRAWL_ALLOW_PRIVATE_NETWORKS === 'true'),
     proxyDomainIntervalMs: nonNegativeInt(env, 'ICECRAWL_PROXY_DOMAIN_INTERVAL_MS', 1000),

@@ -9,6 +9,8 @@ export interface AdminRouteDeps {
   store: Store;
   /** The secret that allows key management; the routes answer 404 when it is not set. */
   adminToken?: string;
+  /** Key management with no token at all, for a server only you can reach (see ICECRAWL_ADMIN_OPEN). Ignored when a token is set. */
+  adminOpen?: boolean;
 }
 
 const MAX_FAILURES = 10;
@@ -28,21 +30,24 @@ const sameSecret = (given: string, expected: string): boolean => {
  * client address, and ten in a minute lock that address out for the rest of the minute.
  */
 export function registerAdminRoutes(app: FastifyInstance, deps: AdminRouteDeps): void {
-  if (!deps.adminToken) return;
   const expected = deps.adminToken;
+  const open = !expected && deps.adminOpen === true;
+  if (!expected && !open) return;
   const failures = new Map<string, { count: number; since: number }>();
 
   app.register(
     async (admin) => {
       admin.addHook('preHandler', async (req: FastifyRequest) => {
+        if (open) return;
         const now = Date.now();
         const seen = failures.get(req.ip);
         if (seen && now - seen.since > WINDOW_MS) failures.delete(req.ip);
         const current = failures.get(req.ip);
         if (current && current.count >= MAX_FAILURES) throw new IceCrawlError('RATE_LIMITED', 'Too many wrong admin tokens; wait a minute.');
         const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization ?? '');
-        if (!match || !sameSecret(match[1], expected)) {
-          failures.set(req.ip, { count: (current?.count ?? 0) + 1, since: current?.since ?? now });
+        if (!match || !sameSecret(match[1], expected!)) {
+          // only a wrong token counts toward the lockout; opening the page without one does not
+          if (match) failures.set(req.ip, { count: (current?.count ?? 0) + 1, since: current?.since ?? now });
           throw new IceCrawlError('UNAUTHORIZED', 'Missing or wrong admin token');
         }
         failures.delete(req.ip);
