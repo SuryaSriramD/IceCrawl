@@ -171,3 +171,72 @@ describe('JavaScript app shells', () => {
     expect(res.json().data?.warning ?? res.json().error).toMatch(/builds its content with JavaScript|not trustworthy/);
   });
 });
+
+const pages = (map: Record<string, string>) => ({
+  ...fakeEngine({}),
+  scrape: async (r: { url: string }) => ({
+    finalUrl: r.url,
+    statusCode: 200,
+    headers: {},
+    body: Buffer.from(map[r.url] ?? '<html><head><title>Missing</title></head><body></body></html>'),
+    contentType: 'text/html',
+    truncated: false,
+  }),
+});
+const withLinks = (...hrefs: string[]) => `<html><head><title>Company</title></head><body>${article}${hrefs.map((h) => `<a href="${h}">x</a>`).join('')}</body></html>`;
+const boardApi: JsonFetcher = async (url) => {
+  if (url.includes('acme')) return { jobs: [{ title: 'Senior Backend Engineer', location: { name: 'Remote - India' }, content: 'Go and Postgres' }, { title: 'Designer', location: { name: 'London' } }] };
+  if (url.includes('beta')) return [{ text: 'Backend Developer', categories: { location: 'Pune' }, descriptionPlain: 'Node' }];
+  throw new Error('HTTP 404');
+};
+
+describe('company pages that hide their board', () => {
+  it('finds a board address inside the page scripts', async () => {
+    const html = `<html><head><title>Careers</title></head><body>${article}<script>var b="https://boards.greenhouse.io/embed/job_board?for=acme";</script></body></html>`;
+    const t = await makeApp({ engine: pages({ 'https://acme.test/careers': html }), jsonFetcher: boardApi });
+    const res = await t.app.inject({ method: 'POST', url: '/v2/jobs', headers: t.auth, payload: { url: 'https://acme.test/careers' } });
+    expect(res.json().data).toMatchObject({ source: 'greenhouse', board: 'acme', total: 2 });
+  });
+
+  it('follows a careers link of the same site, one level deep', async () => {
+    const engine = pages({
+      'https://acme.test/': withLinks('/about', '/careers', 'https://other.test/jobs'),
+      'https://acme.test/careers': withLinks('https://jobs.lever.co/beta'),
+    });
+    const t = await makeApp({ engine, jsonFetcher: boardApi });
+    const res = await t.app.inject({ method: 'POST', url: '/v2/jobs', headers: t.auth, payload: { url: 'https://acme.test/' } });
+    expect(res.json().data).toMatchObject({ source: 'lever', board: 'beta', total: 1 });
+  });
+
+  it('gives up with a warning when the careers pages hold nothing', async () => {
+    const t = await makeApp({ engine: pages({ 'https://acme.test/': withLinks('/careers') }), jsonFetcher: boardApi });
+    const res = await t.app.inject({ method: 'POST', url: '/v2/jobs', headers: t.auth, payload: { url: 'https://acme.test/' } });
+    expect(res.json().data).toMatchObject({ total: 0, warning: expect.stringContaining('No job data') });
+  });
+});
+
+describe('POST /v2/jobs/search', () => {
+  const search = (t: Awaited<ReturnType<typeof makeApp>>, body: Record<string, unknown>) =>
+    t.app.inject({ method: 'POST', url: '/v2/jobs/search', headers: t.auth, payload: body });
+
+  it('merges boards, filters, and reports the ones that failed', async () => {
+    const t = await makeApp({ jsonFetcher: boardApi });
+    const all = (await search(t, { boards: ['greenhouse:acme', 'https://jobs.lever.co/beta', 'ashby:gone'] })).json().data;
+    expect(all).toMatchObject({ boardsRead: 2, scanned: 3, total: 3 });
+    expect(all.errors).toEqual([{ board: 'ashby:gone', error: expect.stringContaining('HTTP 404') }]);
+
+    const backend = (await search(t, { boards: ['greenhouse:acme', 'lever:beta'], query: 'backend' })).json().data;
+    expect(backend.jobs.map((j: { title: string }) => j.title)).toEqual(['Senior Backend Engineer', 'Backend Developer']);
+    expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], remote: true })).json().data.jobs).toHaveLength(1);
+    expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], location: 'pune' })).json().data.jobs).toHaveLength(1);
+    expect((await search(t, { boards: ['greenhouse:acme', 'lever:beta'], query: 'go postgres', limit: 1 })).json().data.jobs).toHaveLength(1);
+  });
+
+  it('validates the board list', async () => {
+    const t = await makeApp({ jsonFetcher: boardApi });
+    expect((await search(t, { boards: [] })).statusCode).toBe(400);
+    expect((await search(t, { boards: ['not a board'] })).statusCode).toBe(400);
+    expect((await search(t, { boards: Array.from({ length: 26 }, (_, i) => `greenhouse:c${i}`) })).statusCode).toBe(400);
+    expect((await t.app.inject({ method: 'POST', url: '/v2/jobs/search', payload: { boards: ['greenhouse:acme'] } })).statusCode).toBe(401);
+  });
+});

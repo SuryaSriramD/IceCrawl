@@ -145,6 +145,14 @@ export interface WaitOptions {
   timeoutMs?: number;
 }
 
+export interface JobsSearchResult {
+  boardsRead: number;
+  scanned: number;
+  total: number;
+  jobs: JobsResult['jobs'];
+  errors: Array<{ board: string; error: string }>;
+}
+
 export interface JobsResult {
   source: string;
   board?: string;
@@ -344,6 +352,11 @@ export class IceCrawl {
   /** The open jobs of a careers page or job board (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Recruitee, or schema.org data on the page). */
   async jobs(url: string, options: { limit?: number } = {}): Promise<JobsResult> {
     return (await this.json<{ data: JobsResult }>('POST', '/v2/jobs', { ...options, url })).data;
+  }
+
+  /** Several company boards at once (URLs or `greenhouse:acme`-style names), one filtered list back. */
+  async searchJobs(boards: string[], filter: { query?: string; location?: string; remote?: boolean; limit?: number } = {}): Promise<JobsSearchResult> {
+    return (await this.json<{ data: JobsSearchResult }>('POST', '/v2/jobs/search', { ...filter, boards })).data;
   }
 
   async map(url: string, options: MapOptions = {}): Promise<MapLink[]> {

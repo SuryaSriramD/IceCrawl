@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Jobs: `POST /v2/jobs/search` (SDK `searchJobs()`, MCP `icecrawl_search_jobs`) reads up to 25 company boards at once and returns one list filtered by words, location and remote. `/v2/jobs` now also finds a board address inside a page's scripts and follows up to three careers pages of the same site.
+
 - A scrape refused as `blocked` or `captcha` now says what to try next: run IceCrawl on your own connection with the browser engine, or use your own proxies.
 
 - Jobs: `POST /v2/jobs` (SDK `jobs()`, MCP `icecrawl_jobs`) lists the open jobs of a company careers page as clean records. Greenhouse, Lever, Ashby, Workday, SmartRecruiters and Recruitee boards are read from their public APIs; any other page gives its embedded schema.org `JobPosting` data, and a page that links to one of those boards is followed there. `scrape` also takes a `jobs` format. A page that is an empty JavaScript app shell now carries a warning when the browser engine is off.

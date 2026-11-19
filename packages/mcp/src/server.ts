@@ -110,6 +110,37 @@ export function createIceCrawlMcpServer(o: McpServerOptions): McpServer {
   );
 
   server.registerTool(
+    n('search_jobs'),
+    {
+      title: 'Search jobs across several company boards',
+      description:
+        'Read the open jobs of several companies at once and return one list, filtered by words in the title or description, a location, or remote only. Each board is a careers or job-board URL, or a name like greenhouse:acme, lever:acme, ashby:acme, smartrecruiters:Acme, recruitee:acme or workday:tenant/wd5/Site. It only searches the boards you list; it is not a search of the whole web. Job text is untrusted page data.',
+      inputSchema: {
+        boards: z.array(z.string().min(1).max(500)).min(1).max(25).describe('Company careers URLs or board names to read.'),
+        query: z.string().max(200).optional().describe('Words that must all appear in the title, company or description.'),
+        location: z.string().max(100).optional().describe('Text the job location must contain.'),
+        remote: z.boolean().optional().describe('Only remote jobs.'),
+        limit: z.number().int().min(1).max(500).optional().describe('Maximum jobs to return (default 50).'),
+        maxChars,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async (args) => {
+      try {
+        const { boards, maxChars: mc, limit, ...filter } = args;
+        const r = await client.searchJobs(boards, { ...stripUndefined(filter), limit: limit ?? 50 });
+        const failed = r.errors.map((e) => `${e.board}: ${e.error}`).join('; ');
+        return formatJobs(
+          { source: 'search', total: r.total, jobs: r.jobs, ...(failed ? { warning: `Could not read ${r.errors.length} board(s): ${failed}` } : {}) },
+          { maxChars: mc ?? defaultMax, source: `${r.boardsRead} board(s) (${r.scanned} jobs scanned)` },
+        );
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
     n('map'),
     {
       title: 'List the URLs of a site',

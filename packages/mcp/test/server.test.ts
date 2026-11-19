@@ -49,7 +49,7 @@ describe('tool registry', () => {
     const { mcp, close } = await connect(client);
     const tools = await mcp.listTools();
     expect(tools.tools.map((t) => t.name).sort()).toEqual(
-      ['icecrawl_agent', 'icecrawl_batch_scrape', 'icecrawl_cancel_crawl', 'icecrawl_check_agent_status', 'icecrawl_check_batch_status', 'icecrawl_check_crawl_status', 'icecrawl_check_extract_status', 'icecrawl_crawl', 'icecrawl_extract', 'icecrawl_jobs', 'icecrawl_list_interact_sessions', 'icecrawl_map', 'icecrawl_scrape', 'icecrawl_search', 'icecrawl_search_index', 'icecrawl_verify_receipt'].sort(),
+      ['icecrawl_agent', 'icecrawl_batch_scrape', 'icecrawl_cancel_crawl', 'icecrawl_check_agent_status', 'icecrawl_check_batch_status', 'icecrawl_check_crawl_status', 'icecrawl_check_extract_status', 'icecrawl_crawl', 'icecrawl_extract', 'icecrawl_jobs', 'icecrawl_list_interact_sessions', 'icecrawl_map', 'icecrawl_scrape', 'icecrawl_search', 'icecrawl_search_index', 'icecrawl_search_jobs', 'icecrawl_verify_receipt'].sort(),
     );
     for (const t of tools.tools) {
       expect(t.description?.length ?? 0).toBeGreaterThan(40);
