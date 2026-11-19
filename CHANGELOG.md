@@ -4,6 +4,8 @@ All notable changes to IceCrawl. The project follows semantic versioning once 1.
 
 ## Unreleased
 
+- Jobs: `POST /v2/jobs` (SDK `jobs()`, MCP `icecrawl_jobs`) lists the open jobs of a company careers page as clean records. Greenhouse, Lever, Ashby, Workday, SmartRecruiters and Recruitee boards are read from their public APIs; any other page gives its embedded schema.org `JobPosting` data, and a page that links to one of those boards is followed there. `scrape` also takes a `jobs` format. A page that is an empty JavaScript app shell now carries a warning when the browser engine is off.
+
 - Dashboard: an **API keys** page to generate, list and revoke API keys (`/admin/keys`), guarded by a separate admin token (`ICECRAWL_ADMIN_TOKEN`; off when unset). A new key is shown once with the Claude and Codex settings. The Render blueprint generates the admin token, so no shell or local database access is needed to make the first key.
 
 - Hosting without a persistent disk: `ICECRAWL_SIGNING_KEY` and `ICECRAWL_WEBHOOK_SECRET` can be given directly, the Docker image can be built without the browser (`ICECRAWL_INSTALL_BROWSER=false`), and a `render.yaml` blueprint with docs/render.md describes a free-tier Render setup without the browser engine.

@@ -7,6 +7,7 @@ import {
   formatExtractStatus,
   formatJobStarted,
   formatJobStatus,
+  formatJobs,
   formatMap,
   formatScrape,
   formatSearch,
@@ -382,5 +383,16 @@ describe('formatExtractStatus', () => {
     const t = text(formatExtractStatus('x1', done({ data: { text: 'y'.repeat(5000) } }), { ...o, maxChars: 800 }));
     expect(t).toContain('truncated');
     expect(t.length).toBeLessThan(2500);
+  });
+});
+
+describe('formatJobs', () => {
+  it('lists jobs with their apply link inside the untrusted-content wrapper, and passes a warning on', () => {
+    const r = { source: 'greenhouse', board: 'acme', total: 2, jobs: [{ title: 'SRE', company: 'Acme', location: 'Pune', remote: true, applyUrl: 'https://x.test/1', source: 'greenhouse' }] };
+    const t = text(formatJobs(r, { maxChars: 2000, source: 'https://boards.greenhouse.io/acme' }));
+    expect(t).toContain('1 of 2 job(s)');
+    expect(t).toContain('1. SRE · Acme · Pune · remote');
+    expect(t).toContain('https://x.test/1');
+    expect(text(formatJobs({ source: 'page', total: 0, jobs: [], warning: 'No job data found' }, { maxChars: 2000, source: 'https://a.test/' }))).toContain('No job data found');
   });
 });

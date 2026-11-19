@@ -12,6 +12,7 @@ import { pickEngines, type ActionOutputs, type Engine, type EngineResult, type P
 import { buildReceipt, classify, scanForInjection, sha256Hex, summarizeScan } from '@icecrawl/trust';
 import { CONVERTER } from './convert';
 import { buildFeatureFlags } from './flags';
+import { jobPostingsFromHtml, type JobPosting } from './job-postings';
 import { renderBody } from './render';
 import type { HostThrottle } from './throttle';
 
@@ -49,6 +50,8 @@ export interface ScrapeRun {
   cleanHtml: string;
   rawHtml: string;
   links: string[];
+  /** schema.org JobPosting records found in the page; only filled when the jobs format was asked for. */
+  jobs: JobPosting[];
   title: string | null;
   description: string | null;
   language: string | null;
@@ -63,6 +66,9 @@ export interface ScrapeRun {
 
 /** Verdicts a better exit address or fingerprint can plausibly fix; anything else is not worth escalating. */
 const ESCALATE: ReadonlySet<Verdict> = new Set<Verdict>(['blocked', 'captcha']);
+
+/** Markup of a page that is a JavaScript app shell: its content only appears once a browser runs the scripts. */
+const APP_SHELL = /<div[^>]+id=["'](?:root|app|__next|__nuxt)["']|<noscript[^>]*>[^<]*enable javascript/i;
 
 /** The proxy tiers to try, in order; null is a direct connection. */
 function proxyTiers(mode: string, pool: ProxyPool | null | undefined): Array<ProxyTier | null> {
@@ -205,6 +211,9 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
   }
 
   if (!last) throw lastError ?? new IceCrawlError('NO_ENGINE', 'No engine produced a result');
+  if (last.engine === 'fetch' && last.markdown.length < 1500 && APP_SHELL.test(last.rawHtml)) {
+    warnings.push('This page builds its content with JavaScript, and the browser engine is not available, so the result may be missing the real content (job listings, prices). Turn on the browser engine (ICECRAWL_BROWSER=true) to read it.');
+  }
 
   const mode = deps.config.injection ?? 'flag';
   const injection = mode === 'off' ? null : scanForInjection({ html: last.rawHtml, markdown: last.markdown });
@@ -247,6 +256,7 @@ export async function runScrape(deps: ScrapeDeps, n: NormalizedScrape): Promise<
     cleanHtml: last.cleanHtml,
     rawHtml: last.rawHtml,
     links: last.links,
+    jobs: n.formats.includes('jobs') ? jobPostingsFromHtml(last.rawHtml, last.result.finalUrl) : [],
     title: last.title,
     description: last.description,
     language: last.language,

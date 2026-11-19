@@ -6,6 +6,8 @@ import { sha256Hex, type PrivateSigningKey } from '@icecrawl/trust';
 import type { MapDeps } from './jobs/map';
 import { registerJobRoutes, type JobsDeps } from './routes/jobs';
 import { registerMapRoute } from './routes/map';
+import { registerJobBoardRoute } from './routes/job-board';
+import type { JsonFetcher } from './jobs/careers';
 import { registerAdminRoutes } from './routes/admin';
 import { registerAgentRoutes } from './routes/agent';
 import { registerDashboardRoutes } from './routes/dashboard';
@@ -31,6 +33,8 @@ export interface AppDeps {
   signer?: PrivateSigningKey;
   jobs?: JobsDeps;
   map?: Pick<MapDeps, 'fetcher'>;
+  /** Reads the job-board APIs behind POST /v2/jobs; tests replace it. */
+  jsonFetcher?: JsonFetcher;
   extraction?: ExtractionDeps;
   search?: SearchProvider | null;
   searchMaxScrape?: number;
@@ -140,6 +144,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
       registerJobRoutes(v2, deps);
       registerMapRoute(v2, deps);
+      registerJobBoardRoute(v2, deps);
       registerSearchRoute(v2, deps);
       registerExtractRoutes(v2, deps);
       registerParseRoutes(v2, deps);

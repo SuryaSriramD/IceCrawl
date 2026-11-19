@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IceCrawlError } from './errors';
 
-export const SUPPORTED_FORMATS = ['markdown', 'html', 'rawHtml', 'links', 'screenshot', 'json', 'summary'] as const;
+export const SUPPORTED_FORMATS = ['markdown', 'html', 'rawHtml', 'links', 'screenshot', 'json', 'summary', 'jobs'] as const;
 export type SupportedFormat = (typeof SUPPORTED_FORMATS)[number];
 
 const formatInput = z.union([z.string(), z.object({ type: z.string() }).passthrough()]);

@@ -45,6 +45,7 @@ export function buildResponse(run: ScrapeRun, formats: SupportedFormat[]): { sta
   if (formats.includes('html')) data.html = run.cleanHtml;
   if (formats.includes('rawHtml')) data.rawHtml = run.rawHtml;
   if (formats.includes('links')) data.links = run.links;
+  if (formats.includes('jobs')) data.jobs = run.jobs;
   if (formats.includes('screenshot')) {
     if (run.screenshot) data.screenshot = dataUri('image/png', run.screenshot);
     else warnings.push('A screenshot was requested but the engine did not produce one.');

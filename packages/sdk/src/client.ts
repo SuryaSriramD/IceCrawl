@@ -145,6 +145,26 @@ export interface WaitOptions {
   timeoutMs?: number;
 }
 
+export interface JobsResult {
+  source: string;
+  board?: string;
+  total: number;
+  jobs: Array<{
+    title: string;
+    company?: string;
+    location?: string;
+    remote?: boolean;
+    employmentType?: string;
+    salary?: string;
+    postedAt?: string;
+    description?: string;
+    url?: string;
+    applyUrl?: string;
+    source: string;
+  }>;
+  warning?: string;
+}
+
 export class IceCrawlApiError extends Error {
   constructor(
     readonly status: number,
@@ -319,6 +339,11 @@ export class IceCrawl {
   }
   async deleteInteractSession(sessionId: string): Promise<void> {
     await this.json('DELETE', `/v2/interact/${sessionId}`);
+  }
+
+  /** The open jobs of a careers page or job board (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Recruitee, or schema.org data on the page). */
+  async jobs(url: string, options: { limit?: number } = {}): Promise<JobsResult> {
+    return (await this.json<{ data: JobsResult }>('POST', '/v2/jobs', { ...options, url })).data;
   }
 
   async map(url: string, options: MapOptions = {}): Promise<MapLink[]> {

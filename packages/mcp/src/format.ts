@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { AgentStatus, IndexResult } from '@icecrawl/sdk';
 import type { ExtractStatusResponse, InjectionReport, JobStatusResponse, MapLink, ScrapeDocument, SearchResponse, SearchResultTrust, TrustBlock } from '@icecrawl/core';
-import { IceCrawlApiError } from '@icecrawl/sdk';
+import { IceCrawlApiError, type JobsResult } from '@icecrawl/sdk';
 import type { VerifyReport } from '@icecrawl/sdk/verify';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
@@ -101,6 +101,26 @@ export function formatMap(links: MapLink[], o: { maxChars: number; source: strin
   const body = truncateToBudget(listing, o.maxChars);
   const head = `IceCrawl map · ${links.length} URL(s) found for ${o.source}${body.truncated ? ' (list truncated to the output budget)' : ''}`;
   return { content: [text(`${head}\n\n${wrapUntrusted(body.text, o.source)}`)] };
+}
+
+const NL = String.fromCharCode(10);
+
+export function formatJobs(r: JobsResult, o: { maxChars: number; source: string }): CallToolResult {
+  const rows = r.jobs.map((j, i) =>
+    [
+      `${i + 1}. ${j.title}${j.company ? ` · ${j.company}` : ''}${j.location ? ` · ${j.location}` : ''}${j.remote ? ' · remote' : ''}`,
+      [j.employmentType, j.salary, j.postedAt && `posted ${j.postedAt.slice(0, 10)}`].filter(Boolean).join(' · '),
+      j.applyUrl ?? j.url,
+      j.description ? j.description.slice(0, 300) : '',
+    ]
+      .filter(Boolean)
+      .map((l, k) => (k === 0 ? l : `   ${l}`))
+      .join(NL),
+  );
+  const body = truncateToBudget(rows.join(NL), o.maxChars);
+  const head = `IceCrawl jobs · ${r.jobs.length} of ${r.total} job(s) from ${o.source} (read via ${r.source})${body.truncated ? ' (list truncated to the output budget)' : ''}${r.warning ? NL + r.warning : ''}`;
+  const list = r.jobs.length ? NL + NL + wrapUntrusted(body.text, o.source) : '';
+  return { content: [text(head + list)] };
 }
 
 export function formatJobStarted(
